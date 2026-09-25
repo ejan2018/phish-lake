@@ -3,7 +3,7 @@
 Phish Lake is an interactive, browser-based educational game that turns standard cybersecurity awareness training into a rewarding fishing arcade simulator. Players cast, hook, and reel in 30 distinct types of fish—each carrying a realistic mock email from a user's inbox. Players must analyze headers, attachments, and URLs to classify the message as legitimate or a malicious phish.
 
 ## 🚀 Live Demo
-[👉 Play Phish Lake Live on GitHub Pages](https://github.io) *(Note: Update this URL if you create a new repository for this project)*
+[👉 Play Phish Lake Live on GitHub Pages](https://ejan2018.github.io/phish-lake/) 
 
 ---
 
