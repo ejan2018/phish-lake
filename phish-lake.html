@@ -1,0 +1,2789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHISH LAKE — a phishing-awareness fishing simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,600&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f2e8d0; --paper2:#d9cba4; --ink:#221b12; --ink2:#5a4d38;
+  --red:#b23a2b; --green:#317052; --amber:#c8842e; --line:rgba(242,232,208,.25);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#131a1f;font-family:'IBM Plex Sans',sans-serif;-webkit-user-select:none;user-select:none}
+#app canvas{display:block;cursor:crosshair;touch-action:none}
+.hidden{display:none!important}
+#cine{position:fixed;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 160px rgba(5,8,10,.55)}
+ 
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'IBM Plex Mono',monospace;color:var(--paper);display:none}
+#hud.on{display:block}
+.hudpanel{background:rgba(14,12,9,.68);border:1px solid var(--line);padding:10px 14px;backdrop-filter:blur(2px)}
+#hudTL{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:8px}
+#odoRow{display:flex;align-items:flex-start;gap:4px}
+#odoSign{font-size:30px;font-weight:600;line-height:1;min-width:18px}
+#odo{display:flex;font-size:30px;font-weight:600;line-height:1}
+.od{display:inline-block;height:1em;overflow:hidden}
+.od.dim{opacity:.22}
+.ostrip{display:block;transition:transform .55s cubic-bezier(.2,.9,.25,1)}
+.ostrip span{display:block;height:1em;line-height:1em}
+#scoreSub{font-size:9px;letter-spacing:.26em;color:var(--paper2);margin-top:5px}
+#prog{display:flex;gap:3px;margin-top:7px}
+.seg{width:15px;height:9px;border:1px solid var(--line)}
+.seg.hit{background:var(--red);border-color:var(--red)}
+.seg.safe{background:var(--green);border-color:var(--green)}
+.seg.miss{background:#6e2b21;border-color:var(--red)}
+#streak{font-size:11px;letter-spacing:.18em;color:var(--amber);display:none;margin-top:6px}
+#streak.on{display:block}
+#badges{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;max-width:230px}
+.trayB{width:22px;height:22px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;background:#14100c}
+.trayB svg{width:13px;height:13px}
+#hudTR{position:absolute;top:16px;right:16px;display:flex;align-items:flex-start;gap:8px}
+#timer{font-size:22px;font-weight:600}
+#shiftcode{font-size:9px;letter-spacing:.24em;color:var(--paper2);text-align:right;margin-top:2px}
+#anglerLbl{font-size:9px;letter-spacing:.2em;color:var(--paper2);text-align:right;margin-top:3px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#muteBtn{pointer-events:auto;cursor:pointer;background:rgba(14,12,9,.68);border:1px solid var(--line);color:var(--paper);width:38px;height:38px;display:flex;align-items:center;justify-content:center}
+#muteBtn:hover{border-color:var(--paper)}
+#muteBtn svg{width:18px;height:18px}
+#prompt{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;white-space:nowrap}
+#promptText{font-size:13px;letter-spacing:.04em}
+#promptKey{font-size:10px;letter-spacing:.2em;border:1px solid var(--line);padding:3px 8px;color:var(--paper2)}
+#prompt.hot{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+#prompt.hot #promptText{color:#ffb4a8}
+#castbar{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);width:240px;height:8px;border:1px solid var(--paper);background:rgba(14,12,9,.6);display:none}
+#castbar.on{display:block}
+#castfill{height:100%;width:0%;background:var(--amber)}
+#tension{position:absolute;right:34px;top:50%;transform:translateY(-50%);width:22px;height:210px;border:1px solid var(--paper);background:rgba(14,12,9,.6);display:none}
+#tension.on{display:block}
+#tensfill{position:absolute;bottom:0;left:0;width:100%;height:0%;background:var(--green)}
+#tension.warn #tensfill{background:var(--amber)}
+#tension.danger #tensfill{background:var(--red)}
+#tension.danger{border-color:var(--red);animation:tpulse .5s infinite alternate}
+@keyframes tpulse{from{box-shadow:0 0 0 0 rgba(178,58,43,0)}to{box-shadow:0 0 0 3px rgba(178,58,43,.5)}}
+#tenslbl{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.3em;color:var(--paper2)}
+#toasts{position:absolute;top:78px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--paper);color:var(--ink);border:1px solid var(--ink);font-family:'IBM Plex Mono';font-size:12px;letter-spacing:.05em;padding:9px 16px;box-shadow:4px 4px 0 rgba(0,0,0,.35);animation:toastIn .3s cubic-bezier(.2,1.4,.4,1);display:flex;align-items:center;gap:9px;max-width:88vw}
+.toast.badge{background:var(--ink);color:var(--amber);border-color:var(--amber);letter-spacing:.12em}
+@keyframes toastIn{from{transform:translateY(-16px);opacity:0}to{transform:none;opacity:1}}
+#fight{position:absolute;top:19%;left:50%;transform:translateX(-50%);font-family:Fraunces,serif;font-weight:900;font-size:clamp(40px,7vw,74px);letter-spacing:.04em;display:none;pointer-events:none;text-shadow:0 3px 0 rgba(0,0,0,.45),0 12px 34px rgba(0,0,0,.45)}
+#fight.on{display:block;animation:fpulse .4s infinite alternate}
+#fight.reel{color:#9fe6b8}
+#fight.slack{color:#ff8d7a}
+#fight.hook{color:#ffd98a}
+@keyframes fpulse{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.1)}}
+ 
+/* ---------- overlays ---------- */
+.ov{position:fixed;inset:0;z-index:20;display:flex}
+#title{align-items:stretch;transition:opacity .6s ease}
+#title.off{opacity:0;pointer-events:none}
+.slab{width:min(660px,94vw);background:rgba(16,14,10,.84);border-right:1px solid var(--line);padding:clamp(26px,4.5vw,58px);display:flex;flex-direction:column;justify-content:center;gap:20px;overflow-y:auto}
+.kicker{font-family:'IBM Plex Mono';letter-spacing:.32em;font-size:11px;color:var(--amber);text-transform:uppercase}
+h1{font-family:Fraunces,serif;font-weight:900;font-size:clamp(54px,8vw,102px);line-height:.92;color:var(--paper);letter-spacing:-.015em}
+h1 em{font-style:normal;color:var(--red)}
+.tag{font-family:Fraunces,serif;font-style:italic;color:var(--paper2);font-size:16.5px;line-height:1.5;max-width:52ch}
+.steps{display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step .n{font-family:'IBM Plex Mono';color:var(--amber);font-size:11px;padding-top:4px;width:22px;flex:none}
+.step svg{width:20px;height:20px;color:var(--paper2);flex:none;margin-top:2px}
+.step p{color:#cdbf9f;font-size:13.5px;line-height:1.5;max-width:56ch}
+.step b{color:var(--paper);font-weight:600}
+.btnrow{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.btn{font-family:'IBM Plex Mono';font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:13px;padding:15px 24px;border:1px solid var(--paper);background:var(--paper);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:transform .12s ease,box-shadow .12s ease;box-shadow:4px 4px 0 rgba(242,232,208,.22)}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 rgba(242,232,208,.3)}
+.btn:active{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(242,232,208,.25)}
+.btn:disabled{opacity:.55;cursor:default;transform:none}
+.btn.ghost{background:transparent;color:var(--paper)}
+.btn.red{background:var(--red);border-color:var(--red);color:var(--paper)}
+.btn.green{background:var(--green);border-color:var(--green);color:var(--paper)}
+.btn.sm{padding:9px 14px;font-size:11px;box-shadow:3px 3px 0 rgba(242,232,208,.18)}
+.btn svg{width:16px;height:16px}
+.fine{font-family:'IBM Plex Mono';font-size:10.5px;color:#8d7f60;letter-spacing:.06em;line-height:1.7}
+#bestchip{font-family:'IBM Plex Mono';font-size:11px;color:var(--amber);letter-spacing:.18em;display:none}
+#welcome{display:none;font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.12em;color:var(--paper2);border:1px solid var(--line);padding:9px 13px;line-height:1.6}
+#welcome b{color:var(--amber)}
+#guide{position:absolute;right:clamp(16px,3vw,48px);top:50%;transform:translateY(-50%);width:min(430px,90vw);background:rgba(16,14,10,.94);border:1px solid var(--line);padding:30px 32px;display:none;max-height:82vh;overflow:auto}
+#guide.on{display:block}
+#guide h3{font-family:Fraunces,serif;font-weight:900;color:var(--paper);font-size:26px;margin-bottom:6px}
+.grule{display:flex;gap:12px;margin-top:16px}
+.grule svg{width:18px;height:18px;color:var(--amber);flex:none;margin-top:2px}
+.grule b{display:block;color:var(--paper);font-size:13.5px}
+.grule span{color:#b6a883;font-size:12.5px;line-height:1.5}
+ 
+/* ---------- leaderboard ---------- */
+#board{position:absolute;right:clamp(16px,3vw,48px);top:50%;transform:translateY(-50%);width:min(470px,90vw);background:rgba(16,14,10,.94);border:1px solid var(--line);padding:28px 30px;display:none;max-height:82vh;overflow:auto}
+#board.on{display:block}
+#board h3{font-family:Fraunces,serif;font-weight:900;color:var(--paper);font-size:26px;margin-bottom:4px}
+#boardList{margin-top:12px}
+.lb{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono';font-size:13px;color:var(--paper2);padding:9px 10px;border-bottom:1px dashed rgba(242,232,208,.14)}
+.lb.me{background:rgba(200,132,46,.12);border:1px solid rgba(200,132,46,.55)}
+.lbR{color:#8d7f60;font-size:11px;width:22px;flex:none}
+.lbM{width:18px;flex:none;color:var(--amber);display:flex;align-items:center}
+.lbN{color:var(--paper);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbB{margin-left:auto;font-size:10px;color:#8d7f60;flex:none}
+.lbP{color:var(--amber);font-weight:600;flex:none;min-width:96px;text-align:right}
+ 
+/* ---------- auth ---------- */
+#authwrap{align-items:stretch;transition:opacity .6s ease;z-index:25}
+#authwrap.off{opacity:0;pointer-events:none}
+#authLeft{width:min(520px,94vw);background:rgba(14,12,9,.95);border-right:1px solid var(--line);padding:clamp(26px,4.5vw,54px);display:flex;flex-direction:column;justify-content:center;gap:14px;overflow-y:auto}
+#authwrap h1{font-size:clamp(46px,6vw,80px)}
+#authEmail,#authPass,#authPass2{font-family:'IBM Plex Mono';font-size:15px;padding:12px 13px;background:#0e0c09;border:1px solid var(--line);color:var(--paper);width:100%}
+#authEmail:focus,#authPass:focus,#authPass2:focus{outline:none;border-color:var(--amber)}
+#pwRow{display:flex;gap:8px;margin-top:6px}
+#pwRow input{flex:1}
+#pwEye{flex:none;width:46px;background:#0e0c09;border:1px solid var(--line);color:var(--paper2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+#pwEye:hover{border-color:var(--paper);color:var(--paper)}
+#pwEye svg{width:19px;height:19px}
+#pwMeter{display:flex;align-items:center;gap:8px;margin-top:7px}
+#pwBars{display:flex;gap:4px;flex:1}
+.pwbar{flex:1;height:4px;background:#3a3226}
+.pwbar.w{background:var(--red)}
+.pwbar.f{background:var(--amber)}
+.pwbar.g{background:#7d9a4f}
+.pwbar.s{background:var(--green)}
+#pwLbl{font-family:'IBM Plex Mono';font-size:9.5px;letter-spacing:.22em;color:var(--paper2);min-width:58px;text-align:right}
+.authTabs{display:flex;gap:8px}
+.atab{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.18em;padding:9px 14px;border:1px solid var(--line);background:transparent;color:var(--paper2);cursor:pointer}
+.atab:hover{border-color:var(--paper)}
+.atab.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+#authErr{font-family:'IBM Plex Mono';font-size:11.5px;color:#ff9d8d;min-height:17px;letter-spacing:.04em}
+#authSea{flex:1;position:relative;min-width:0;overflow:hidden;background:#0a3247}
+#seaCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#seaMsg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .5s;width:100%}
+#seaMsg.on{opacity:1}
+#seaMsg .big{font-family:Fraunces,serif;font-weight:900;font-size:clamp(26px,3.6vw,46px);letter-spacing:.16em;color:#f2e8d0;text-shadow:0 4px 26px rgba(0,0,0,.6)}
+#seaMsg .sub{font-family:Fraunces,serif;font-style:italic;font-size:18px;color:rgba(242,232,208,.7);margin-top:10px;text-shadow:0 2px 14px rgba(0,0,0,.6)}
+#seaPeek{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-family:'IBM Plex Mono';font-size:12px;letter-spacing:.14em;color:rgba(242,232,208,.8);opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+#seaPeek.on{opacity:1}
+@media (max-width:880px){
+ #authwrap{flex-direction:column;overflow:auto}
+ #authLeft{width:100%;border-right:none;border-bottom:1px solid var(--line)}
+ #authSea{min-height:340px;flex:none}
+}
+ 
+/* ---------- catch card ---------- */
+#cardwrap{position:fixed;inset:0;display:none;align-items:center;justify-content:flex-start;padding:4vh 5vw;z-index:30;background:rgba(10,8,6,.38)}
+#cardwrap.open{display:flex}
+#card{width:min(560px,94vw);max-height:88vh;overflow-y:auto;background:var(--paper);color:var(--ink);position:relative;transform:translateX(46px) rotate(2.5deg);opacity:0;transition:.45s cubic-bezier(.2,1.2,.3,1);box-shadow:0 30px 70px rgba(0,0,0,.55)}
+#cardwrap.open #card{transform:none;opacity:1}
+#card::-webkit-scrollbar{width:10px}
+#card::-webkit-scrollbar-thumb{background:var(--paper2)}
+.cardtop{background:var(--ink);color:var(--paper);font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.24em;padding:10px 20px;display:flex;justify-content:space-between}
+.species{font-family:Fraunces,serif;font-weight:900;font-size:27px;padding:18px 22px 2px}
+.subline{font-family:'IBM Plex Mono';font-size:11px;color:var(--ink2);padding:0 22px;letter-spacing:.08em}
+.rule{border:none;border-top:1px solid rgba(34,27,18,.22);margin:13px 22px}
+.mrow{display:flex;gap:12px;padding:3px 22px;font-size:13.5px;line-height:1.5}
+.mrow .k{font-family:'IBM Plex Mono';font-size:9.5px;letter-spacing:.2em;color:var(--ink2);width:62px;padding-top:4px;flex:none}
+.addr{font-family:'IBM Plex Mono';font-size:12px;background:rgba(34,27,18,.07);padding:1px 6px;border:1px solid rgba(34,27,18,.16);cursor:help}
+.mono{font-family:'IBM Plex Mono';font-size:12px;color:var(--ink2)}
+.body p{padding:0 22px;font-size:14.5px;line-height:1.6;margin:9px 0;color:#2c2418}
+.em-link{color:#1f4f8f;text-decoration:underline dotted;text-underline-offset:3px;cursor:help;font-family:'IBM Plex Mono';font-size:13px}
+.chipAtt{display:inline-flex;gap:9px;align-items:center;border:1px solid rgba(34,27,18,.32);padding:7px 12px;font-family:'IBM Plex Mono';font-size:12px;margin:6px 22px;background:rgba(34,27,18,.05);cursor:help}
+.chipAtt svg{width:15px;height:15px;color:var(--ink2)}
+#verdictBtns{display:flex;gap:12px;padding:18px 22px;flex-wrap:wrap}
+.stamp{position:absolute;top:70px;right:22px;transform:rotate(-8deg) scale(2.4);opacity:0;border:4px double currentColor;padding:.22em .55em;font-family:Fraunces,serif;font-weight:900;letter-spacing:.14em;font-size:2.3rem;color:var(--red);mix-blend-mode:multiply;pointer-events:none}
+.stamp.green{color:var(--green)}
+.stamp.on{animation:stampIn .38s cubic-bezier(.25,1.5,.4,1) forwards}
+@keyframes stampIn{0%{transform:rotate(-22deg) scale(2.4);opacity:0}60%{transform:rotate(-7deg) scale(.94);opacity:1}100%{transform:rotate(-8deg) scale(1);opacity:.92}}
+#chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 22px 6px}
+.chip{font-family:'IBM Plex Mono';font-size:12px;border:1px solid;padding:4px 10px;opacity:0;animation:chipIn .4s .1s forwards}
+@keyframes chipIn{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.chip.good{color:var(--green);border-color:var(--green)}
+.chip.bad{color:var(--red);border-color:var(--red)}
+#notes{max-height:0;overflow:hidden;transition:max-height .55s ease;border-top:1px dashed rgba(34,27,18,.35)}
+#notes.open{max-height:1100px}
+.notesHead{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.3em;color:var(--ink2);padding:14px 22px 4px}
+.note{display:flex;gap:11px;padding:9px 22px;font-size:13.5px;line-height:1.5}
+.note svg{flex:none;width:17px;height:17px;color:var(--red);margin-top:2px}
+.note.safe svg{color:var(--green)}
+.note b{font-weight:600}
+#cardFooter{display:none;padding:6px 22px 24px}
+#cardFooter.on{display:block}
+ 
+/* ---------- end screen ---------- */
+#endwrap{display:none;align-items:center;justify-content:center;background:rgba(10,8,6,.55);z-index:35}
+#endwrap.on{display:flex}
+.slab.center{border:1px solid var(--line);width:min(640px,94vw);max-height:92vh}
+h2{font-family:Fraunces,serif;font-weight:900;color:var(--paper);font-size:clamp(38px,6vw,58px);line-height:1}
+.receipt{font-family:'IBM Plex Mono';font-size:13px;color:var(--paper2)}
+.rrow{display:flex;align-items:baseline;gap:8px;padding:5px 0}
+.rrow .lbl{color:#8d7f60;letter-spacing:.12em;font-size:10.5px}
+.rrow .dots{flex:1;border-bottom:1px dotted #6a5f48;transform:translateY(-3px)}
+.rrow .val{color:var(--paper);font-weight:600}
+#review{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:9px;max-height:24vh;overflow:auto}
+.rv{display:flex;gap:10px;align-items:baseline;font-size:12px;font-family:'IBM Plex Mono'}
+.rv .vc{font-size:9.5px;letter-spacing:.14em;padding:2px 7px;border:1px solid;flex:none}
+.rvc-phish{color:#ff9d8d;border-color:#ff9d8d}
+.rvc-clean{color:#9fdcbd;border-color:#9bd8b4}
+.rv .ok{color:#9fdcbd}.rv .ko{color:#ff9d8d}
+.rv .who{color:var(--paper2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv .tell{color:#8d7f60;margin-left:auto;flex:none;font-size:10.5px}
+#endBadges{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:9px}
+.eb{display:flex;gap:12px;align-items:center}
+.eb .medal{width:34px;height:34px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;flex:none;background:#14100c}
+.eb .medal svg{width:18px;height:18px}
+.eb b{color:var(--paper);font-size:13px;display:block}
+.eb span{color:#8d7f60;font-size:11.5px}
+.medal.gold{color:var(--amber);border-color:var(--amber)}
+.medal.silver{color:#b9c0c8;border-color:#8d99a5}
+.medal.bronze{color:#cf9a6d;border-color:#a9713c}
+ 
+#tooltip{position:fixed;z-index:70;background:var(--ink);color:var(--paper);font-family:'IBM Plex Mono';font-size:11.5px;line-height:1.5;padding:8px 11px;border:1px solid rgba(242,232,208,.3);max-width:360px;pointer-events:none;display:none;box-shadow:0 10px 26px rgba(0,0,0,.45)}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:40;box-shadow:inset 0 0 150px rgba(178,58,43,.9);opacity:0;transition:opacity .2s}
+#vignette.on{opacity:1}
+.ico svg{width:1.05em;height:1.05em;display:inline-block;vertical-align:-.14em}
+ 
+/* ---------- certificate studio ---------- */
+#certwrap{position:fixed;inset:0;z-index:50;background:rgba(12,10,7,.92);display:none;overflow:auto;padding:18px}
+#certwrap.on{display:block}
+#certPanel{max-width:1520px;margin:0 auto;display:flex;gap:20px;align-items:flex-start}
+.certControls{width:330px;flex:none;background:rgba(16,14,10,.97);border:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:10px;position:sticky;top:0}
+.cch{font-family:Fraunces,serif;font-weight:900;color:var(--paper);font-size:22px}
+.ccl{font-family:'IBM Plex Mono';font-size:9.5px;letter-spacing:.26em;color:var(--amber);margin-top:8px}
+#certName{font-family:Fraunces,serif;font-size:19px;padding:10px 12px;background:#0e0c09;border:1px solid var(--line);color:var(--paper);width:100%}
+#certName:focus{outline:none;border-color:var(--amber)}
+#camBox{border:1px solid var(--line);padding:8px;background:#0e0c09;display:flex;flex-direction:column;gap:8px}
+#camVideo{width:100%;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1);background:#000}
+#filterRow,#stickerRow{display:flex;flex-wrap:wrap;gap:6px}
+.fchip{font-family:'IBM Plex Mono';font-size:10.5px;letter-spacing:.1em;padding:6px 10px;border:1px solid var(--line);color:var(--paper2);cursor:pointer;background:transparent}
+.fchip:hover{border-color:var(--paper)}
+.fchip.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.sbtn{width:52px;height:52px;border:1px solid var(--line);background:#0e0c09;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sbtn:hover{border-color:var(--paper)}
+.sbtn canvas{width:44px;height:44px}
+input[type=range]{accent-color:var(--amber);width:100%}
+.certStage{flex:1;min-width:0;background:rgba(16,14,10,.6);border:1px solid var(--line);padding:14px}
+#certCanvas{width:100%;height:auto;display:block;cursor:grab;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+@media (max-width:920px){#certPanel{flex-direction:column}.certControls{position:static;width:100%}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="cine"></div>
+ 
+<!-- HUD -->
+<div id="hud">
+  <div id="hudTL">
+    <div class="hudpanel">
+      <div id="odoRow"><span id="odoSign"></span><div id="odo"></div></div>
+      <div id="scoreSub">POINTS · READS <span id="readsCt">00/12</span> · <span id="stockCt">30 FISH</span></div>
+      <div id="prog"></div>
+      <div id="streak">STREAK ×2</div>
+      <div id="badges"></div>
+    </div>
+  </div>
+  <div id="hudTR">
+    <div class="hudpanel" style="text-align:right">
+      <div id="timer">00:00</div>
+      <div id="shiftcode">SHIFT —</div>
+      <div id="anglerLbl">ANGLER · —</div>
+    </div>
+    <button id="muteBtn" title="Sound on/off"></button>
+  </div>
+  <div id="tension"><span id="tenslbl">DRAG</span><div id="tensfill"></div></div>
+  <div id="fight"></div>
+  <div id="castbar"><div id="castfill"></div></div>
+  <div id="prompt" class="hudpanel"><span id="promptText"></span><span id="promptKey">HOLD LMB / SPACE</span></div>
+  <div id="toasts"></div>
+</div>
+ 
+<!-- AUTH -->
+<div id="authwrap" class="ov off">
+  <div id="authLeft">
+    <div>
+      <div class="kicker">Phish Lake · Angler registry</div>
+      <h1><em>ANGLE</em> IN</h1>
+    </div>
+    <p class="tag">Create an angler account or sign back in. Your lifetime points, best shifts and records are kept in your logbook — and ranked on the lake leaderboard, forever climbing.</p>
+    <div class="authTabs">
+      <button class="atab on" id="tabLogin">SIGN IN</button>
+      <button class="atab" id="tabSignup">CREATE ACCOUNT</button>
+    </div>
+    <div>
+      <label class="ccl">EMAIL</label>
+      <input id="authEmail" type="email" maxlength="64" autocomplete="off" spellcheck="false" placeholder="you@example.com">
+      <label class="ccl" style="margin-top:10px">PASSWORD</label>
+      <div id="pwRow">
+        <input id="authPass" type="password" maxlength="64" placeholder="8+ characters, letters and numbers">
+        <button id="pwEye" type="button" title="Show / hide password"></button>
+      </div>
+      <div id="pwMeter" class="hidden">
+        <div id="pwBars"><span class="pwbar"></span><span class="pwbar"></span><span class="pwbar"></span><span class="pwbar"></span></div>
+        <span id="pwLbl"></span>
+      </div>
+      <div id="confirmRow" class="hidden" style="margin-top:10px">
+        <label class="ccl">CONFIRM PASSWORD</label>
+        <input id="authPass2" type="password" maxlength="64" placeholder="type it again" style="margin-top:6px">
+      </div>
+    </div>
+    <div id="authErr"></div>
+    <div class="btnrow">
+      <button class="btn" id="authGo">SIGN IN</button>
+      <button class="btn ghost" id="authGuest">PLAY AS GUEST</button>
+    </div>
+    <p class="fine">Accounts live on this device. Passwords are stored only as salted, key-stretched SHA-256 hashes — never in plain text, never sent anywhere. And yes: the fish in the sea are trying to read your password.</p>
+  </div>
+  <div id="authSea">
+    <canvas id="seaCanvas"></canvas>
+    <div id="seaMsg"><div class="big">PRIVACY IS OUR POLICY</div><div class="sub">even the sharks look away</div></div>
+    <div id="seaPeek">· the fish are trying to read your password ·</div>
+  </div>
+</div>
+ 
+<!-- TITLE -->
+<div id="title" class="ov off">
+  <div class="slab">
+    <div>
+      <div class="kicker">Security drill · Freshwater division</div>
+      <h1><em>PHISH</em> LAKE</h1>
+    </div>
+    <div id="welcome"></div>
+    <p class="tag">Thirty big fish patrol the lake — and every single one is carrying mail from your inbox. Land them, read the messages inside — Discord, Google, Apple, Steam, your bank — and call each one: legitimate business, or bait on a hook?</p>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><span data-ico="rod"></span><p><b>Cast.</b> Hold the mouse to charge, steer with the cursor, release to send the bobber across the golden water. Watch for the jumps — a leaping fish is a hungry fish.</p></div>
+      <div class="step"><span class="n">02</span><span data-ico="bobber"></span><p><b>Hook &amp; reel.</b> Strike the instant the float dips — even a tick can be hooked. Then obey the big letters: <b>REEL</b> when it tires, <b>SLACK</b> when it runs.</p></div>
+      <div class="step"><span class="n">03</span><span data-ico="shield"></span><p><b>Classify.</b> Inspect the recovered message — sender, links, attachments — then call it. Twelve catches per shift, badges for the sharp-eyed, and a printable <b>certificate</b> with your own photo at the end.</p></div>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="startBtn" disabled>LOADING THE TACKLE…</button>
+      <button class="btn ghost" id="guideBtn">FIELD GUIDE</button>
+      <button class="btn ghost" id="boardBtn">LEADERBOARD</button>
+      <span id="bestchip"></span>
+    </div>
+    <p class="fine">All messages are fictional training material. Any resemblance to real scams is, unfortunately, probable. Hover every sender, every link, every attachment — the clues are in the details.</p>
+  </div>
+  <div id="guide">
+    <h3>Field Guide</h3>
+    <p class="fine" style="margin-bottom:4px">Six habits of people who never take the bait.</p>
+    <div class="grule"><span data-ico="mail"></span><div><b>Read the real address</b><span>Display names lie. The domain after the @ is the identity. Watch look-alikes: paypa1, micros0ft, lnstagram, d0cusign.</span></div></div>
+    <div class="grule"><span data-ico="link"></span><div><b>Hover every link</b><span>The blue words and the true destination are different things. In this lake, hover to see where a link really goes.</span></div></div>
+    <div class="grule"><span data-ico="clock"></span><div><b>Feel the pressure</b><span>"Within 24 hours", "final warning", "account suspended". Urgency is a tool, not information.</span></div></div>
+    <div class="grule"><span data-ico="shield"></span><div><b>Follow the secrets</b><span>No legitimate service asks for your password, PIN, CVV, gift-card codes or crypto recovery phrase over email.</span></div></div>
+    <div class="grule"><span data-ico="clip"></span><div><b>Mind the attachments</b><span>Unexpected .zip or executable files are malware's favorite outfit. A real invoice rarely travels zipped.</span></div></div>
+    <div class="grule"><span data-ico="check"></span><div><b>Cost your mistakes</b><span>A missed phish steals data; a false report buries real work. Accuracy beats paranoia.</span></div></div>
+    <div class="btnrow" style="margin-top:22px"><button class="btn ghost" id="guideClose">CLOSE</button></div>
+  </div>
+  <div id="board">
+    <h3>Lake Leaderboard</h3>
+    <p class="fine">Lifetime points across every shift — the highest dock comes first.</p>
+    <div id="boardList"></div>
+    <div class="btnrow" style="margin-top:18px">
+      <button class="btn ghost" id="boardClose">CLOSE</button>
+      <button class="btn ghost" id="logoutBtn">LOG OUT</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- CATCH CARD -->
+<div id="cardwrap">
+  <div id="card">
+    <div class="cardtop"><span>INCOMING CATCH · MESSAGE RECOVERED</span><span id="cardClock"></span></div>
+    <div class="species" id="cSpecies"></div>
+    <div class="subline" id="cMeta"></div>
+    <hr class="rule">
+    <div class="mrow"><span class="k">FROM</span><span class="v"><b id="cFromName"></b><br><span class="addr" id="cFromAddr"></span></span></div>
+    <div class="mrow"><span class="k">TO</span><span class="v mono" id="cTo"></span></div>
+    <div class="mrow"><span class="k">SUBJECT</span><span class="v" id="cSubj"></span></div>
+    <hr class="rule">
+    <div class="body" id="cBody"></div>
+    <div id="cLinks"></div>
+    <div id="cAtt"></div>
+    <hr class="rule">
+    <div id="verdictBtns">
+      <button class="btn red" id="btnPhish"></button>
+      <button class="btn green" id="btnSafe"></button>
+    </div>
+    <div id="chips"></div>
+    <div id="notes"><div class="notesHead" id="notesHead"></div><div id="notesBody"></div></div>
+    <div id="cardFooter"><button class="btn" id="btnNext">CAST AGAIN</button></div>
+    <div id="stamp" class="stamp">PHISH</div>
+  </div>
+</div>
+ 
+<!-- END -->
+<div id="endwrap" class="ov">
+  <div class="slab center">
+    <div class="kicker">Shift report · <span id="endCode"></span></div>
+    <h2 id="endGrade"></h2>
+    <p class="tag" id="endTag"></p>
+    <div class="receipt" id="receipt"></div>
+    <div id="review"></div>
+    <div id="endBadges"></div>
+    <div class="btnrow" style="margin-top:22px">
+      <button class="btn" id="certBtn">CLAIM YOUR CERTIFICATE</button>
+      <button class="btn ghost" id="againBtn">START NEW SHIFT</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- CERTIFICATE STUDIO -->
+<div id="certwrap">
+  <div id="certPanel">
+    <div class="certControls">
+      <div class="cch">Certificate Studio</div>
+      <label class="ccl">ANGLER NAME</label>
+      <input id="certName" maxlength="30" placeholder="Type your name" autocomplete="off">
+      <label class="ccl">PHOTO — CAMERA OR UPLOAD</label>
+      <div class="btnrow">
+        <button class="btn sm" id="camBtn">USE CAMERA</button>
+        <button class="btn sm ghost" id="upBtn">UPLOAD PHOTO</button>
+      </div>
+      <div id="camBox" class="hidden">
+        <video id="camVideo" autoplay playsinline muted></video>
+        <div class="btnrow">
+          <button class="btn sm" id="snapBtn">CAPTURE</button>
+          <button class="btn sm ghost" id="camCancel">CANCEL</button>
+        </div>
+      </div>
+      <input type="file" id="upInput" accept="image/*" hidden>
+      <label class="ccl">FILTER</label>
+      <div id="filterRow"></div>
+      <label class="ccl">STICKERS — CLICK TO ADD · DRAG ON PORTRAIT</label>
+      <div id="stickerRow"></div>
+      <div id="stickerCtl" class="hidden">
+        <label class="ccl">SELECTED STICKER</label>
+        <input type="range" id="stSize" min="0.5" max="2.2" step="0.05" value="1">
+        <button class="btn sm ghost" id="stDel">REMOVE STICKER</button>
+      </div>
+      <label class="ccl">PHOTO ZOOM · DRAG TO REFRAME</label>
+      <input type="range" id="photoZoom" min="0.6" max="2.6" step="0.05" value="1.15">
+      <button class="btn" id="dlBtn">DOWNLOAD CERTIFICATE PNG</button>
+      <button class="btn ghost sm" id="certBack">BACK TO REPORT</button>
+      <p class="fine">The camera needs permission and a secure page (https or localhost). No photo? The certificate ships with the official lake seal instead.</p>
+    </div>
+    <div class="certStage"><canvas id="certCanvas"></canvas></div>
+  </div>
+</div>
+ 
+<div id="tooltip"></div>
+<div id="vignette"></div>
+ 
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+ 
+/* ============================================================ helpers */
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const lerpAngle=(a,b,t)=>{let d=(b-a+Math.PI*3)%(Math.PI*2)-Math.PI;return a+d*t;};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ 
+const ICO={
+rod:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20C6.5 10.5 12.5 5.5 20 4.5"/><circle cx="20" cy="4.5" r="1.4"/><path d="M4 20l4-9"/></svg>',
+bobber:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v3"/><circle cx="12" cy="12.5" r="6.5"/><path d="M5.5 12.5h13"/><path d="M12 2.5l-1 2"/></svg>',
+shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.8V11c0 4.8-3 8-7 9.6C8 19 5 15.8 5 11V5.8z"/><path d="M9 11.5l2 2 4-4.5"/></svg>',
+mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg>',
+alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4L2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.6" r=".7" fill="currentColor" stroke="none"/></svg>',
+check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg>',
+x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>',
+link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9.5 14.5l5-5"/><path d="M12.5 7.5L14 6a3.5 3.5 0 0 1 5 5l-1.5 1.5"/><path d="M11.5 16.5L10 18a3.5 3.5 0 0 1-5-5l1.5-1.5"/></svg>',
+clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 12.5l6.5-6.5a3 3 0 0 1 4.2 4.2l-8 8a5 5 0 0 1-7-7l7.5-7.5"/></svg>',
+snd:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>',
+mute:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+fish:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12c3-4.2 7.6-5.6 12-3.6L20.5 5l-1.2 4.3L20.5 14l-5.3-2.2C11 15.8 6 16.2 3 12z"/><circle cx="7.2" cy="11.4" r=".5" fill="currentColor"/></svg>',
+eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.7"/></svg>',
+eyeoff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5c1.9 0 3.6.5 5 1.3M22 12s-3.6 6.5-10 6.5c-1.9 0-3.6-.5-5-1.3"/><path d="M4 20L20 4"/></svg>'
+};
+document.querySelectorAll('[data-ico]').forEach(el=>{el.innerHTML=ICO[el.dataset.ico]||'';el.classList.add('ico');});
+ 
+/* badge glyph paths (24x24) */
+const GLYPHS={
+fish:['M2 12c2.5-4.2 6.6-6 10.6-4.5L20 4l-1.7 5.5L20 15l-7.4-3.5C8.6 18 4.5 16.2 2 12z','nonzero'],
+shield:['M12 2l8 3v6.2c0 5-3.2 8.6-8 10.3-4.8-1.7-8-5.3-8-10.3V5z','nonzero'],
+bolt:['M13 2L4 14h6l-2 8 10-13h-6z','nonzero'],
+eye:['M12 5C7 5 3.2 9 2 12c1.2 3 5 7 10 7s8.8-4 10-7c-1.2-3-5-7-10-7zm0 10a3 3 0 110-6 3 3 0 010 6z','evenodd'],
+clock:['M12 2a10 10 0 100 20 10 10 0 000-20zm1 4h-2v7l5.2 3.1 1-1.7-4.2-2.5z','evenodd'],
+check:['M9.5 16.2L5.3 12l-1.8 1.8 6 6L20.5 8.8 18.7 7z','nonzero'],
+star:['M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z','nonzero'],
+crown:['M2 8l4.7 4.2L12 4l5.3 8.2L22 8l-1.6 11H3.6z','nonzero'],
+hook:['M15 2h3v9.5a5.5 5.5 0 01-11 0V10h3v1.5a2.5 2.5 0 005 0z','nonzero']
+};
+function glyphSVG(ic,size=16){const g=GLYPHS[ic];
+ return `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="${g[0]}" fill-rule="${g[1]}" fill="currentColor"/></svg>`;}
+ 
+const BADGES=[
+ {id:'first',name:'First Catch',desc:'Land your first message fish',ic:'fish',tier:'bronze'},
+ {id:'streak3',name:'Sharp Streak',desc:'Three correct calls in a row',ic:'bolt',tier:'bronze'},
+ {id:'quick3',name:'Speed Reader',desc:'Three verdicts in under 18 seconds',ic:'clock',tier:'silver'},
+ {id:'iron',name:'Iron Line',desc:'Never let the drag touch red',ic:'hook',tier:'silver'},
+ {id:'gate',name:'Gatekeeper',desc:'Zero false reports all shift',ic:'check',tier:'silver'},
+ {id:'streak5',name:'Unblinking',desc:'Five correct calls in a row',ic:'eye',tier:'gold'},
+ {id:'koi',name:'Golden Koi',desc:'Catch the rare Golden Koi',ic:'crown',tier:'gold'},
+ {id:'hunter',name:'Phish Hunter',desc:'Report every phish in the shift',ic:'shield',tier:'gold'},
+ {id:'perfect',name:'Perfect Shift',desc:'100% accuracy, twelve for twelve',ic:'star',tier:'gold'},
+ {id:'legend',name:'Lake Legend',desc:'Finish with 1000+ points',ic:'star',tier:'gold'}
+];
+const TIERC={bronze:'#a9713c',silver:'#9aa0a8',gold:'#c8842e'};
+ 
+/* ============================================================ training emails (48) */
+const PLAYER_ADDR='sam.reyes@northwind-corp.com';
+const EMAILS=[
+/* ---- phish (28) ---- */
+{p:true,from:'PayPal Support',addr:'security@paypa1-verify.com',subj:'Unusual sign-in detected — action required',time:'02:14',
+ body:['Dear Customer,','We detected a sign-in to your account from a new device in Kyiv, Ukraine. If this was not you, your account will be permanently suspended within 24 hours.','Verify your identity now to keep your account active.'],
+ links:[{t:'https://www.paypal.com/verify',h:'http://paypa1-verify.com/signin'}],att:null,attNote:null,
+ flags:[['Look-alike domain','The real sender is paypa1-verify.com — the "l" in paypal was swapped for the digit "1".'],['The link is a costume','The text reads paypal.com but the true destination is paypa1-verify.com. Hover before you click.'],['Manufactured urgency','"Permanently suspended within 24 hours" is pressure, not information.'],['Generic greeting','"Dear Customer" — a service that holds your account knows your name.']],
+ tell:'paypa1.com + link mismatch'},
+{p:true,from:'IT Service Desk',addr:'svc-desk@micros0ft-online.net',subj:'Your password expires in 2 hours',time:'04:51',
+ body:['Your corporate password is scheduled to expire in 2 hours.','To keep your current password and avoid being locked out, confirm it below.'],
+ links:[{t:'Keep my current password',h:'http://micros0ft-online.net/pw/keep'}],att:null,attNote:null,
+ flags:[['Look-alike domain','micros0ft-online.net uses a zero instead of an "o" — and it is not your company\'s domain anyway.'],['Impossible promise','Real IT never lets you "keep" a password via a link. Expiry means change it.'],['Countdown pressure','A two-hour fuse is designed to make you click before you think.']],
+ tell:'"keep your password" link + zero in domain'},
+{p:true,from:'Marta Keller — CEO',addr:'m.keller@northwind-ceo-mail.com',replyTo:'marta.keller.ceo@quickmail-relay.net',subj:'Quick favor before I board — confidential',time:'07:03',
+ body:['I\'m locked in a board meeting and can\'t take calls.','I need you to pick up five $200 gift cards for a client gesture today. Scratch off the codes and reply with them — I\'ll reimburse you this afternoon.','Please keep this between us for now.'],
+ links:[],att:null,attNote:null,
+ flags:[['Impersonated executive','Your CEO writes from northwind-corp.com. This look-alike is built to fool a glance.'],['Reply-to mismatch','Hover the sender: replies route to quickmail-relay.net, not the displayed address.'],['Gift cards are not currency','Untraceable card codes are the classic social-engineering payout.'],['Secrecy + urgency','"Keep this between us" and "this afternoon" are the scam\'s heartbeat.']],
+ tell:'CEO gift-card request, reply-to mismatch'},
+{p:true,from:'DHL Express',addr:'parcel.alert@track-dhl-parcel.co',subj:'Customs hold: $1.99 duty unpaid',time:'09:26',
+ body:['Your parcel (tracking 4482-991-XZ) is held at customs.','An outstanding duty of $1.99 must be settled within 48 hours or the parcel will be returned to sender.','Settlement details are in the attached invoice.'],
+ links:[],att:'DHL_Invoice_4482.zip',attNote:'Executable archive — real DHL invoices never arrive as .zip files.',
+ flags:[['Not dhl.com','The sender domain is track-dhl-parcel.co. Real DHL mail comes from dhl.com.'],['A dangerous attachment','An unexpected .zip "invoice" is a standard malware delivery.'],['Tiny-fee lure','$1.99 is small enough to pay without thinking — that is the point.']],
+ tell:'.zip attachment + fake DHL domain'},
+{p:true,from:'Instagram',addr:'noreply@lnstagram-help.com',subj:'Login from a new device — verify within 12 hours',time:'11:47',
+ body:['Hi User,','A login from Chrome on Windows in Moscow, RU was detected on your account.','If this was not you, verify your identity within 12 hours or the account will be disabled.'],
+ links:[{t:'Verify your identity',h:'http://lnstagram-help.com/verify'}],att:null,attNote:null,
+ flags:[['Homoglyph domain','lnstagram-help.com begins with a lowercase L, not a capital I.'],['Generic "Hi User"','Your name is in your profile; a real notification would use it.'],['Verification funnel','"Verify your identity" pages harvest credentials. The real app never needs this link.']],
+ tell:'lnstagram (L, not I) + verify link'},
+{p:true,from:'Fraud Team — Bank of the West',addr:'alert@bankofthewest-secure.net',subj:'Card declined abroad — confirm your details',time:'13:12',
+ body:['Your debit card was declined in Jakarta, Indonesia.','To block the card we require your full card number, expiry, CVV and PIN to confirm ownership.','Fraud holds expire in 30 minutes. Reply immediately.'],
+ links:[],att:null,attNote:null,
+ flags:[['Banks never ask this','No legitimate bank requests your PIN or CVV by email. Ever. That is the whole tell.'],['Look-alike domain','bankofthewest-secure.net is not bankofthewest.com.'],['Fake countdown','"Fraud holds expire in 30 minutes" exists only to make you comply fast.']],
+ tell:'asks for PIN + CVV by email'},
+{p:true,from:'Northwind Benefits Team',addr:'enrollment@company-benefits-portal.info',subj:'Mandatory benefits enrollment closes TONIGHT 11:59 PM',time:'15:38',
+ body:['This is your final reminder.','If you do not re-enroll tonight you will lose dental and vision coverage for the entire year.','Sign in with your corporate email and Windows password to confirm your elections.'],
+ links:[{t:'Complete your enrollment',h:'http://company-benefits-portal.info/sso'}],att:null,attNote:null,
+ flags:[['External impostor','Your HR writes from northwind-corp.com. This .info domain is a credential trap.'],['Password harvest','No enrollment portal needs your Windows password. Corporate SSO never asks you to type it into an external page.'],['Loss + deadline','"Lose coverage for the entire year" is engineered panic.']],
+ tell:'external .info portal asks for Windows password'},
+{p:true,from:'Netflix Billing',addr:'billing@netflix-update.com',subj:'Your payment method was declined',time:'17:20',
+ body:['We couldn\'t process your monthly payment.','Update your card details within 48 hours to keep watching — your list and profiles will be removed.'],
+ links:[{t:'Update payment method',h:'http://netflix-update.com/pay'}],att:null,attNote:null,
+ flags:[['Typosquat domain','netflix-update.com is not netflix.com.'],['Card harvesting','The linked page exists to photograph your card number.'],['Vague threat detail','"Profiles will be removed" — scare language with no substance.']],
+ tell:'netflix-update.com card-harvest page'},
+{p:true,from:'Amazon.com',addr:'account-security@amazon-security.co',subj:'New device signed in via 1-Click — review now',time:'19:55',
+ body:['A device in São Paulo, Brazil signed into your account and enabled 1-Click ordering.','Secure your account within 24 hours.'],
+ links:[{t:'https://www.amazon.com/secure',h:'http://amazon-security.co/secure'}],att:null,attNote:null,
+ flags:[['The domain is the tell','amazon-security.co is not amazon.com. Anyone can register words around a dash.'],['Disguised link','Displayed as amazon.com, actually amazon-security.co. Hover to see the seam.']],
+ tell:'amazon-security.co link dressed as amazon.com'},
+{p:true,from:'Zoom',addr:'billing@zoom-us-renew.top',subj:'Your Workspace subscription renews tomorrow — $399.90',time:'21:41',
+ body:['Your Zoom Workspace plan will auto-renew tomorrow at $399.90.','If you did not authorize this renewal, cancel within 24 hours using the link below.'],
+ links:[{t:'Cancel auto-renewal',h:'http://zoom-us-renew.top/cancel'}],att:null,attNote:null,
+ flags:[['Look-alike .top domain','zoom-us-renew.top has no relationship with zoom.us.'],['The cancellation lure','A shocking renewal price is bait; the "cancel" link is the trap.']],
+ tell:'fake $399 renewal + cancel lure'},
+{p:true,from:'Discord',addr:'noreply@discord-nitro.gifts-claim.ru',subj:'boatz4life sent you a Nitro gift',time:'03:37',
+ body:['You have been gifted 1 year of Discord Nitro by boatz4life.','Nitro gifts expire after 48 hours. Accept it before it is gone.'],
+ links:[{t:'Accept your Nitro gift',h:'http://discord-nitro.gifts-claim.ru/accept'}],att:null,attNote:null,
+ flags:[['Not discord.com','Real Discord mail comes from discord.com — not a .ru gift domain.'],['Stranger generosity','A Nitro gift from someone you have never spoken to is bait, not luck.'],['Gift expiry pressure','48-hour countdowns are the scam\'s timer, not Discord policy.']],
+ tell:'Nitro gift from a stranger on a .ru domain'},
+{p:true,from:'Steam Support',addr:'no-reply@steamcommunuty.com',subj:'Your trade offer is on hold',time:'05:12',
+ body:['A trade offer is being held because you signed in from a new location.','Confirm your Steam credentials to release the hold and keep your items.'],
+ links:[{t:'Release the trade hold',h:'http://steamcommunuty.com/login'}],att:null,attNote:null,
+ flags:[['steamcommunuty.com','The real domain is steampowered.com — this one is missing an "i".'],['Steam never emails logins','Trade holds are managed in the app, never through an emailed sign-in page.'],['Your inventory is the bait','Item-hold scams target accounts with valuable skins.']],
+ tell:'steamcommunuty.com login lure'},
+{p:true,from:'Google',addr:'no-reply@accounts-google.security-alert.co',subj:'Security alert: sign-in attempt blocked',time:'06:48',
+ body:['Someone just used your password to try to sign in from Lagos, Nigeria.','Google has blocked the sign-in. Review the activity and secure your account immediately.'],
+ links:[{t:'Secure your account',h:'http://accounts-google.security-alert.co/signin'}],att:null,attNote:null,
+ flags:[['The domain wears a costume','accounts-google.security-alert.co is not accounts.google.com.'],['Fear then a link','Real Google alerts link to myaccount.google.com and never route you through a look-alike sign-in.']],
+ tell:'look-alike Google security alert'},
+{p:true,from:'Apple',addr:'appleid@verify-appleid-center.com',subj:'Your Apple ID has been locked',time:'08:19',
+ body:['Your Apple ID was locked after too many incorrect password attempts.','Verify your account information within 24 hours or the account will be permanently deleted.'],
+ links:[{t:'Verify my Apple ID',h:'http://verify-appleid-center.com/verify'}],att:null,attNote:null,
+ flags:[['Not apple.com','Apple sends from apple.com or email.apple.com — never verify-appleid-center.com.'],['Deletion threat','Apple does not delete Apple IDs by email countdown.'],['Credential harvest','The "verify" page exists to photograph your password.']],
+ tell:'fake Apple ID lockout page'},
+{p:true,from:'WhatsApp',addr:'voicemail@whatsapp-voicemsg.net',subj:'New voicemail message (0:34)',time:'10:26',
+ body:['You missed a WhatsApp voice message.','Listen to your voicemail within 24 hours before it expires.'],
+ links:[{t:'Play voicemail',h:'http://whatsapp-voicemsg.net/play'}],att:null,attNote:null,
+ flags:[['WhatsApp has no email voicemail','Voice messages live in the app. This email does not.'],['Invented domain','whatsapp-voicemsg.net has nothing to do with whatsapp.com.'],['Curiosity hook','A short mystery clip is engineered to be clicked.']],
+ tell:'WhatsApp "voicemail" WhatsApp never sends'},
+{p:true,from:'LinkedIn',addr:'jobs@linkedin-careers-secure.net',subj:'9 recruiters viewed your profile this week',time:'11:58',
+ body:['Recruiters from 4 companies searched for your profile.','Confirm your password to see who is looking for you.'],
+ links:[{t:'Confirm password to view',h:'http://linkedin-careers-secure.net/verify'}],att:null,attNote:null,
+ flags:[['LinkedIn never re-collects passwords by email','Any "confirm your password" mail is a phish by definition.'],['Look-alike domain','linkedin-careers-secure.net is not linkedin.com.'],['Curiosity bait','"See who is looking" is a lure aimed straight at your ego.']],
+ tell:'"confirm your password" curiosity bait'},
+{p:true,from:'Slack',addr:'billing@slack-workspace-billing.com',subj:'Your workspace will be suspended in 24 hours',time:'13:44',
+ body:['We could not process your last Slack subscription payment.','An administrator must verify workspace billing details within 24 hours or the workspace will be suspended.'],
+ links:[{t:'Verify workspace billing',h:'http://slack-workspace-billing.com/admin'}],att:null,attNote:null,
+ flags:[['Not slack.com','The real billing mail comes from slack.com.'],['Admin phish','"Verify as administrator" emails try to steal the keys to the whole company.'],['Suspension countdown','Fear of losing the workspace rushes you past the domain check.']],
+ tell:'Slack "workspace suspended" admin phish'},
+{p:true,from:'Adobe',addr:'billing@adobe-creativecloud-pay.net',subj:'Payment failed — Creative Cloud expires in 3 days',time:'15:02',
+ body:['Your Adobe Creative Cloud payment could not be processed.','Update your billing information within 3 days to keep your apps.'],
+ links:[{t:'Update billing information',h:'http://adobe-creativecloud-pay.net/card'}],att:null,attNote:null,
+ flags:[['Not adobe.com','adobe-creativecloud-pay.net is a card-harvest page, not Adobe.'],['Card update funnel','The form on the other end photographs your card number.']],
+ tell:'Adobe card-harvest billing page'},
+{p:true,from:'Spotify',addr:'no-reply@spotify-billing-update.com',subj:'Your Premium subscription was canceled',time:'16:31',
+ body:['Your Premium subscription has been canceled due to a payment issue.','Reactivate today and lock in 50% off for the next 6 months.'],
+ links:[{t:'Reactivate at 50% off',h:'http://spotify-billing-update.com/renew'}],att:null,attNote:null,
+ flags:[['Typosquat domain','spotify-billing-update.com is not spotify.com.'],['Loss plus discount','Cancellation panic sweetened with a "deal" — a double hook.']],
+ tell:'Spotify "canceled" 50%-off lure'},
+{p:true,from:'Coinbase',addr:'security@coinbase-secure-verify.io',subj:'Unrecognized withdrawal attempt — verification required',time:'18:07',
+ body:['Someone attempted to withdraw 0.42 BTC from your account.','To cancel the withdrawal, confirm your 12-word recovery phrase below.'],
+ links:[{t:'Cancel withdrawal & verify',h:'http://coinbase-secure-verify.io/verify'}],att:null,attNote:null,
+ flags:[['The recovery phrase is the vault','No legitimate service will ever ask for your seed phrase. Anyone who has it owns your wallet.'],['Look-alike .io domain','coinbase-secure-verify.io is not coinbase.com.']],
+ tell:'asks for your 12-word recovery phrase'},
+{p:true,from:'Venmo',addr:'notify@venmo-cash-claim.com',subj:'Rosa D. sent you $250.00 — claim within 7 days',time:'19:40',
+ body:['Rosa D. sent you $250.00.','Unclaimed payments expire after 7 days. Link a card to verify your identity and claim the money.'],
+ links:[{t:'Claim your $250.00',h:'http://venmo-cash-claim.com/claim'}],att:null,attNote:null,
+ flags:[['Venmo does not hold payments hostage','Real Venmo payments just arrive in the app.'],['Typosquat domain','venmo-cash-claim.com is not venmo.com.'],['Claim deadline','The 7-day fuse exists to stop you thinking.']],
+ tell:'$250 claim deadline Venmo never sets'},
+{p:true,from:'Docusign',addr:'dse@d0cusign-docs-secure.co',subj:'Completed: "Q3_Contract.pdf" awaiting signature',time:'20:55',
+ body:['Your document has been completed and is waiting for your review.','Please review and sign the document. It will expire in 5 days.'],
+ links:[{t:'Review Documents',h:'http://d0cusign-docs-secure.co/sign'}],att:null,attNote:null,
+ flags:[['d0cusign — zero, not O','A single swapped character separates this from the real docusign.net.'],['Unexpected document','You are not expecting a contract today — that matters.'],['Signing pages harvest credentials','These fakes mimic the DocuSign login to steal it.']],
+ tell:'d0cusign (zero) signing lure'},
+{p:true,from:'USPS',addr:'tracking@usps-parcel-redelivery.us',subj:'Delivery on hold — address verification failed',time:'07:15',
+ body:['Your package could not be delivered because the address did not verify.','A redelivery fee of $0.99 is required to reschedule delivery.'],
+ links:[{t:'Reschedule delivery',h:'http://usps-parcel-redelivery.us/pay'}],att:null,attNote:null,
+ flags:[['USPS never emails fees','The Post Office does not collect $0.99 redelivery fees by email link.'],['Look-alike domain','Real USPS mail comes from usps.com.'],['Tiny fee, big harvest','The payment page also wants your card and address.']],
+ tell:'USPS redelivery fee USPS never charges'},
+{p:true,from:'Microsoft 365',addr:'mailquota@m365-mail-verify.com',subj:'Your mailbox is full — incoming email will stop today',time:'09:41',
+ body:['Your mailbox has reached 97% of its quota.','Confirm your credentials to expand your storage and keep receiving email.'],
+ links:[{t:'Expand mailbox storage',h:'http://m365-mail-verify.com/expand'}],att:null,attNote:null,
+ flags:[['Not your company tenant','Real quota mail comes from northwind-corp.com, not m365-mail-verify.com.'],['Credentials for storage','No quota system needs your password to "expand".'],['Panic by design','"You will stop receiving email" is engineered anxiety.']],
+ tell:'mailbox-full panic from outside the company'},
+{p:true,from:'Roblox',addr:'rewards@roblox-rewads.link',subj:'5,000 Robux pending on your account',time:'12:23',
+ body:['Congratulations! Your account has been selected for a 5,000 Robux reward.','Claim within 12 hours — unclaimed rewards are returned to the pool.'],
+ links:[{t:'Claim your Robux',h:'http://roblox-rewads.link/claim'}],att:null,attNote:null,
+ flags:[['"rewads" — typo in the domain','The scammer misspelled their own trap: roblox-rewads.link.'],['Free currency','Robux is only bought or earned in-app, never by email.'],['Countdown pressure','12 hours to act is not a policy, it is a shove.']],
+ tell:'free Robux typosquat (rewads)'},
+{p:true,from:'Twitch',addr:'billing@twitch-sub-payments.net',subj:'Subscription payment failed — subs will be canceled',time:'17:29',
+ body:['We could not process payment for your channel subscriptions.','Update your payment method or all subscriptions will be canceled within 48 hours.'],
+ links:[{t:'Update payment method',h:'http://twitch-sub-payments.net/pay'}],att:null,attNote:null,
+ flags:[['Not twitch.tv','Billing mail from twitch-sub-payments.net is a stranger wearing Twitch\'s logo.'],['Card harvest page','The "payment method" form collects card numbers for the scammer.']],
+ tell:'Twitch billing page that is not twitch.tv'},
+{p:true,from:'IRS Tax Refund',addr:'refund@irs-refund-portal.us',subj:'Your 2024 tax refund of $1,432.72 is ready',time:'21:12',
+ body:['After our annual calculation, you are eligible for a refund of $1,432.72.','Submit your Social Security number and bank details to receive your direct deposit.'],
+ links:[{t:'Submit refund information',h:'http://irs-refund-portal.us/refund'}],att:null,attNote:null,
+ flags:[['The IRS does not email refunds','The real IRS communicates by postal mail — it never emails first.'],['SSN request','No legitimate refund needs your Social Security number typed into an emailed link.'],['Exact dollar bait','A precise amount makes the lie feel like accounting.']],
+ tell:'IRS refund email asking for your SSN'},
+{p:true,from:'Facebook Pages',addr:'appeals@facebook-page-appeals.support',subj:'Your page is scheduled for deletion (Policy 4.2)',time:'22:47',
+ body:['Your page "Northwind Outfitters" violates our Community Standards (Policy 4.2).','The page will be permanently deleted in 48 hours. File an appeal to stop it.'],
+ links:[{t:'File an appeal',h:'http://facebook-page-appeals.support/appeal'}],att:null,attNote:null,
+ flags:[['Not facebook.com','Meta operates facebook.com — not facebook-page-appeals.support.'],['Deletion scare','"Scheduled for deletion" pages pressure admins into handing over page access.'],['Appeal funnel','The appeal form steals the admin credentials that unlock your audience.']],
+ tell:'page-deletion appeal from a .support domain'},
+/* ---- legit (20) ---- */
+{p:false,from:'GitHub',addr:'noreply@github.com',subj:'[GitHub] Your two-factor authentication code',time:'08:30',
+ body:['Hi Sam,','Your two-factor authentication code is 482 913. It expires in 10 minutes.','If you didn\'t request it, someone may be trying to access your account. Never share this code with anyone.'],
+ links:[],att:null,attNote:null,
+ safe:[['Exact corporate domain','github.com is the real thing — no dashes, no look-alikes.'],['Nothing to click','A genuine 2FA code email never asks you to follow a link or send the code anywhere.']],
+ tell:'real github.com, code-only, no links'},
+{p:false,from:'Rosa Delgado',addr:'rosa.delgado@northwind-corp.com',subj:'Hendricks invoice — final, for your records',time:'09:02',
+ body:['Hi Sam,','Accounts settled the Hendricks project this morning.','Attaching the final invoice for your files — nothing you need to do. Coffee next week?'],
+ links:[],att:'Hendricks_invoice_final.pdf',attNote:'PDF from a known internal colleague — plausible context, no call to action.',
+ safe:[['Known internal sender','rosa.delgado@northwind-corp.com is a colleague on the real corporate domain.'],['No pressure, no links','An FYI with a clear PDF attachment and zero urgency reads like real business.']],
+ tell:'internal colleague, FYI only, PDF context'},
+{p:false,from:'Bank of the West',addr:'no-reply.alerts@bankofthewest.com',subj:'Did you make this purchase? $48.12 — Sunset Gas, Akron OH',time:'10:15',
+ body:['We blocked a $48.12 charge that doesn\'t match your usual activity.','If this wasn\'t you, call the number on the back of your card or use our official mobile app.','We will never ask for your PIN or full card number by email or link.'],
+ links:[],att:null,attNote:null,
+ safe:[['Real domain','bankofthewest.com — compare it letter by letter with any look-alike you meet.'],['No links at all','It points you to the number on your card — a channel the bank controls and you can verify.']],
+ tell:'real domain, no links, card-back number'},
+{p:false,from:'Pinterest',addr:'no-reply@pinterest.com',subj:'3 new notifications for you',time:'12:44',
+ body:['Rosa saved your pin "Cabin dock ideas".','See what else you missed this week.'],
+ links:[{t:'View your notifications',h:'https://www.pinterest.com/notifications/'}],att:null,attNote:null,
+ safe:[['Link matches its costume','Hover: the link really goes to pinterest.com.'],['Low stakes','No urgency, no credentials, nothing to verify.']],
+ tell:'pinterest.com link matches display text'},
+{p:false,from:'IT Helpdesk',addr:'helpdesk@northwind-corp.com',subj:'Planned maintenance: VPN gateway, Sat 02:00–04:00',time:'14:09',
+ body:['We\'re upgrading the VPN gateway on Saturday between 02:00 and 04:00. Connections may drop for a few minutes.','No action is needed — simply reconnect after 04:00 if you work weekend hours.','— Helpdesk, ticket #41822'],
+ links:[],att:null,attNote:null,
+ safe:[['Internal domain','helpdesk@northwind-corp.com is the real service desk.'],['"No action needed"','Real infrastructure mail informs; phishing mail demands.']],
+ tell:'real internal helpdesk, no action requested'},
+{p:false,from:'Google Calendar',addr:'calendar-notification@google.com',subj:'Invitation: Design review @ Thu 3–4 PM',time:'15:50',
+ body:['You have been invited to "Design review" by rosa.delgado@northwind-corp.com.','Going? Yes · No · Maybe.'],
+ links:[{t:'See details on your calendar',h:'https://calendar.google.com/calendar/event?eid=ZGVzaw==.ics'}],att:null,attNote:null,
+ safe:[['Real google.com sender','calendar-notification@google.com is the genuine notification address.'],['Known inviter','The invitation comes from a colleague you recognize on the corporate domain.']],
+ tell:'genuine calendar invite from a colleague'},
+{p:false,from:'Amazon.com',addr:'shipment-tracking@amazon.com',subj:'Your order has shipped: cast iron skillet',time:'18:27',
+ body:['Your order of one (1) Lodge cast iron skillet shipped today and should arrive Thursday.','Track your package any time from your orders page.'],
+ links:[{t:'Track your package',h:'https://www.amazon.com/gp/your-orders'}],att:null,attNote:null,
+ safe:[['Real domain, real detail','A specific, mundane order — the opposite of vague alarm.'],['Honest link','Hover confirms amazon.com, and there is nothing to "verify".']],
+ tell:'real amazon.com, specific order, honest link'},
+{p:false,from:'Maple St. Veterinary Clinic',addr:'reception@maplestvet.com',subj:'Reminder: Biscuit\'s dental check — Tue 9:30 AM',time:'19:33',
+ body:['A friendly reminder for Biscuit\'s dental examination on Tuesday at 9:30 AM. Please arrive 10 minutes early.','To reschedule, call us at (555) 214-8890 — the same number printed on your last invoice.'],
+ links:[],att:null,attNote:null,
+ safe:[['No links whatsoever','A phone number you can cross-check against your own paperwork — verifiable by design.']],
+ tell:'no links, callback number matches your records'},
+{p:false,from:'Google',addr:'no-reply@accounts.google.com',subj:'Security alert: new sign-in on Windows',time:'08:44',
+ body:['Your Google Account was just signed in to on a new Windows device in Columbus, US.','You received this email to make sure it was you.'],
+ links:[{t:'Check activity',h:'https://myaccount.google.com/notifications'}],att:null,attNote:null,
+ safe:[['Exact domain','accounts.google.com — the genuine notification address.'],['No password, no panic','It informs you; it does not demand anything.']],
+ tell:'genuine accounts.google.com alert'},
+{p:false,from:'Discord',addr:'noreply@discord.com',subj:'Your Discord login verification code',time:'09:58',
+ body:['Your verification code is 550 812.','Never share this code with anyone — Discord staff will never ask for it.'],
+ links:[],att:null,attNote:null,
+ safe:[['Real domain, code only','discord.com with a plain code and no links to click.']],
+ tell:'code-only login from discord.com'},
+{p:false,from:'Steam',addr:'noreply@steampowered.com',subj:'Steam Guard Mobile Authenticator code',time:'10:31',
+ body:['Here is the Steam Guard code you requested: K 9 V 2 M.','If you didn\'t request this code, change your password immediately from the Steam client.'],
+ links:[],att:null,attNote:null,
+ safe:[['steampowered.com is real','The genuine Steam domain. A code, a warning, and nothing to click.']],
+ tell:'genuine Steam Guard code'},
+{p:false,from:'Apple',addr:'no_reply@email.apple.com',subj:'Your receipt from Apple — iCloud+ with 200GB',time:'12:02',
+ body:['Your subscription to iCloud+ with 200GB storage renewed today for $2.99.','Total billed: $2.99. No action is required.'],
+ links:[{t:'Manage your subscriptions',h:'https://apps.apple.com/account/subscriptions'}],att:null,attNote:null,
+ safe:[['Real Apple receipt address','email.apple.com is the genuine sender.'],['Mundane and verifiable','A tiny real charge, a real management link, no urgency.']],
+ tell:'real Apple receipt, honest link'},
+{p:false,from:'LinkedIn',addr:'messages-noreply@linkedin.com',subj:'New message from Rosa Delgado: "nice streak this week"',time:'13:37',
+ body:['Rosa Delgado sent you a message on LinkedIn.','"Nice streak this week — the field guide squad is proud of you."'],
+ links:[{t:'Reply on LinkedIn',h:'https://www.linkedin.com/messaging/'}],att:null,attNote:null,
+ safe:[['Exact domain','linkedin.com, not a look-alike.'],['Known sender, low stakes','A friendly note from a colleague — nothing to verify, nothing demanded.']],
+ tell:'real linkedin.com message notice'},
+{p:false,from:'Slack',addr:'no-reply@slack.com',subj:'Your Tuesday digest — #security-drill',time:'14:20',
+ body:['Here is what you missed in #security-drill: 12 new messages, 1 file shared.','Catch up on the conversation.'],
+ links:[{t:'Open #security-drill',h:'https://your-workspace.slack.com/archives/security-drill'}],att:null,attNote:null,
+ safe:[['slack.com, spelled correctly','The genuine digest address.'],['Informational','A digest tells; a phish demands.']],
+ tell:'genuine slack.com digest'},
+{p:false,from:'Spotify',addr:'no-reply@spotify.com',subj:'Your Premium renews on the 14th — $11.99/month',time:'15:46',
+ body:['A reminder: your Premium plan renews on the 14th for $11.99.','Your payment method on file will be charged. Manage your plan any time.'],
+ links:[{t:'Manage your plan',h:'https://www.spotify.com/account/'}],att:null,attNote:null,
+ safe:[['The honest twin','Compare with the fake "canceled" email: real Spotify informs calmly and links to spotify.com.']],
+ tell:'calm renewal from the real spotify.com'},
+{p:false,from:'Venmo',addr:'venmo@venmo.com',subj:'Rosa Delgado paid you $12.50',time:'16:58',
+ body:['Rosa Delgado paid you $12.50.','Note: "tacos — we are square".'],
+ links:[{t:'View this transaction',h:'https://venmo.com/transaction/88214'}],att:null,attNote:null,
+ safe:[['venmo.com, money already there','No claiming, no deadline — the payment simply happened, as real Venmo payments do.']],
+ tell:'payment already delivered, no claim needed'},
+{p:false,from:'Dropbox',addr:'no-reply@dropbox.com',subj:'Rosa Delgado shared "Hendricks-final-v3" with you',time:'17:33',
+ body:['Rosa shared a folder with you: "Hendricks-final-v3" containing 4 files.','You can view it in your Dropbox.'],
+ links:[{t:'Open shared folder',h:'https://www.dropbox.com/sh/hendricks-v3'}],att:null,attNote:null,
+ safe:[['dropbox.com and a known sender','The domain is genuine and the sharer is a colleague you recognize.']],
+ tell:'real dropbox.com share from a colleague'},
+{p:false,from:'Coinbase',addr:'no-reply@coinbase.com',subj:'New device authorization',time:'18:22',
+ body:['A new device was authorized on your Coinbase account.','Your verification code is 334 991. We will never ask for your recovery phrase.'],
+ links:[],att:null,attNote:null,
+ safe:[['Code only, phrase never','The genuine email says out loud what the phish tries to steal: nobody legitimate asks for your recovery phrase.']],
+ tell:'device notice that never asks for secrets'},
+{p:false,from:'USPS',addr:'auto-reply@usps.com',subj:'Informed Delivery: mail arriving today',time:'07:52',
+ body:['Today you will receive 3 mailpieces: a letter, a magazine and a large envelope.','Preview your mail in Informed Delivery.'],
+ links:[{t:'Preview your mail',h:'https://informeddelivery.usps.com/'}],att:null,attNote:null,
+ safe:[['usps.com, no fees','Real USPS mail preview costs nothing and never needs your card.']],
+ tell:'genuine Informed Delivery digest'},
+{p:false,from:'Docusign',addr:'dse@docusign.net',subj:'Completed: Northwind MSA — all parties have signed',time:'11:09',
+ body:['The Northwind MSA has been completed and countersigned by all parties.','A copy of the executed document is attached for your records.'],
+ links:[],att:'Northwind_MSA_signed.pdf',attNote:'Expected envelope from the genuine docusign.net — you were part of this signature flow.',
+ safe:[['docusign.net, spelled exactly','Compare letter by letter with d0cusign-docs-secure.co.'],['Expected context','You knew this envelope was coming — surprise is the phish\'s tool, not yours.']],
+ tell:'expected envelope from real docusign.net'}
+];
+ 
+/* ============================================================ synthesized audio */
+const SFX=(()=>{ 
+ let ctx=null,master=null,muted=false,noiseBuf=null;
+ const ensure=()=>{ if(ctx)return; try{
+   ctx=new (window.AudioContext||window.webkitAudioContext)();
+   master=ctx.createGain(); master.gain.value=muted?0:.55; master.connect(ctx.destination);
+   const len=ctx.sampleRate*2; noiseBuf=ctx.createBuffer(1,len,ctx.sampleRate);
+   const d=noiseBuf.getChannelData(0); for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+   const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true;
+   const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=340;
+   const g=ctx.createGain(); g.gain.value=.045;
+   const lfo=ctx.createOscillator(); lfo.frequency.value=.13;
+   const lg=ctx.createGain(); lg.gain.value=.022; lfo.connect(lfo); lg.connect(g.gain); lfo.start();
+   s.connect(f); f.connect(g); g.connect(master); s.start();
+   const cricket=()=>{ const f0=4200+Math.random()*700;
+     for(let i=0;i<3;i++)setTimeout(()=>tone(f0,'sine',.012,.004,.03),i*95);
+     setTimeout(cricket,2400+Math.random()*2600); };
+   setTimeout(cricket,1500);
+ }catch(e){} };
+ const now=()=>ctx.currentTime;
+ function tone(fr,type,peak,a,dur,slide){ if(!ctx)return; const o=ctx.createOscillator(),g=ctx.createGain();
+   o.type=type; o.frequency.setValueAtTime(fr,now());
+   if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,slide),now()+a+dur);
+   g.gain.setValueAtTime(0,now()); g.gain.linearRampToValueAtTime(peak,now()+a);
+   g.gain.exponentialRampToValueAtTime(.0001,now()+a+dur);
+   o.connect(g); g.connect(master); o.start(); o.stop(now()+a+dur+.05); }
+ function noise(dur,peak,f0,f1,type='lowpass'){ if(!ctx)return;
+   const s=ctx.createBufferSource(); s.buffer=noiseBuf; s.loop=true;
+   const fl=ctx.createBiquadFilter(); fl.type=type;
+   fl.frequency.setValueAtTime(f0,now()); fl.frequency.exponentialRampToValueAtTime(Math.max(40,f1),now()+dur);
+   const g=ctx.createGain(); g.gain.setValueAtTime(0,now());
+   g.gain.linearRampToValueAtTime(peak,now()+.012); g.gain.exponentialRampToValueAtTime(.0001,now()+dur);
+   s.connect(fl); fl.connect(g); g.connect(master); s.start(); s.stop(now()+dur+.1); }
+ return {
+  ensure,
+  setMuted(m){muted=m; if(master)master.gain.value=m?0:.55;},
+  whoosh(){noise(.45,.14,300,2600,'bandpass');},
+  plop(){tone(300,'sine',.22,.005,.12,90); noise(.1,.1,900,300);},
+  splash(v=1){noise(.5*v,.28*v,1500,300); tone(120,'sine',.2*v,.005,.2,60);},
+  bite(){tone(1245,'square',.1,.005,.07); setTimeout(()=>tone(1660,'square',.1,.005,.09),90); tone(240,'sine',.2,.005,.12,80);},
+  hookset(){tone(200,'sine',.3,.005,.16,70); noise(.2,.2,1600,400);},
+  snap(){tone(1500,'square',.22,.002,.06,300); noise(.18,.3,3500,900,'highpass');},
+  reel(p){tone(190+p*280,'square',.045,.002,.03);},
+  creak(p){tone(85+p*70,'sawtooth',.05,.06,.3);},
+  thrash(){noise(.28,.16,1200,500);},
+  chime(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,'triangle',.15,.01,.35),i*90));},
+  wrong(){tone(330,'sawtooth',.16,.01,.4,180); setTimeout(()=>tone(196,'sawtooth',.14,.02,.5,140),120);},
+  stamp(){tone(70,'sine',.45,.005,.18); noise(.07,.18,900,250);},
+  blip(){tone(880,'sine',.07,.005,.08);}
+ };
+})();
+ 
+/* ============================================================ DOM & UI helpers */
+const tipEl=$('tooltip');
+document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');
+ if(t&&t.dataset.tip){tipEl.textContent=t.dataset.tip;tipEl.style.display='block';}});
+document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('[data-tip]'))tipEl.style.display='none';});
+document.addEventListener('mousemove',e=>{ if(tipEl.style.display==='block'){
+ let x=e.clientX+16,y=e.clientY+18;
+ if(x+tipEl.offsetWidth>innerWidth-8)x=e.clientX-tipEl.offsetWidth-12;
+ if(y+tipEl.offsetHeight>innerHeight-8)y=e.clientY-tipEl.offsetHeight-12;
+ tipEl.style.left=x+'px';tipEl.style.top=y+'px';}});
+function toast(msg,dur=2600){const d=document.createElement('div');d.className='toast';d.textContent=msg;
+ $('toasts').appendChild(d);setTimeout(()=>{d.style.transition='opacity .4s';d.style.opacity=0;setTimeout(()=>d.remove(),420);},dur);}
+function toastBadge(b){const d=document.createElement('div');d.className='toast badge';
+ d.innerHTML='<span class="medal '+b.tier+'" style="width:26px;height:26px;border-radius:50%;border:2px solid '+TIERC[b.tier]+';display:inline-flex;align-items:center;justify-content:center;color:'+TIERC[b.tier]+'">'+glyphSVG(b.ic,14)+'</span>BADGE UNLOCKED · '+b.name.toUpperCase();
+ $('toasts').appendChild(d);SFX.chime();
+ setTimeout(()=>{d.style.transition='opacity .5s';d.style.opacity=0;setTimeout(()=>d.remove(),520);},3400);}
+function setPrompt(txt,hot=false){$('promptText').textContent=txt;$('prompt').classList.toggle('hot',hot);}
+function setFight(txt,cls){const el=$('fight');
+ if(!txt){el.classList.remove('on','reel','slack','hook');el.textContent='';return;}
+ el.textContent=txt;el.classList.add('on');
+ el.classList.toggle('reel',cls==='reel');
+ el.classList.toggle('slack',cls==='slack');
+ el.classList.toggle('hook',cls==='hook');}
+ 
+/* odometer */
+function makeOdo(el,n){const ds=[];
+ for(let i=0;i<n;i++){const d=document.createElement('span');d.className='od';
+  const s=document.createElement('span');s.className='ostrip';
+  for(let k=0;k<10;k++){const t=document.createElement('span');t.textContent=k;s.appendChild(t);}
+  d.appendChild(s);el.appendChild(d);ds.push({d,s});}
+ return{set(v){const neg=v<0;const a=Math.abs(v);
+  const str=String(Math.min(999999,a)).padStart(n,'0');const sig=String(a).length||1;
+  ds.forEach((o,i)=>{o.s.style.transform='translateY(-'+str[i]+'em)';o.d.classList.toggle('dim',i<n-Math.max(sig,1));});
+  $('odoSign').textContent=neg?'−':'';}};}
+ 
+/* ============================================================ three.js scene (lake) */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+ $('app').appendChild(renderer.domElement);
+ 
+const scene=new THREE.Scene();
+const FOG_COLOR=new THREE.Color(0x9e8070);
+scene.fog=new THREE.Fog(FOG_COLOR,38,150);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,800);
+ 
+const sunDir=new THREE.Vector3(.32,.14,-1).normalize();
+const hemi=new THREE.HemisphereLight(0x54637a,0x2a3320,.55); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffc38a,2.6);
+sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:2,far:100});
+sun.shadow.bias=-0.0005;
+sun.position.set(0,1,26).addScaledVector(sunDir,45);
+sun.target.position.set(0,1,26); scene.add(sun,sun.target);
+const lanternLight=new THREE.PointLight(0xffb45e,16,16,2); scene.add(lanternLight);
+ 
+const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
+ uniforms:{uSunDir:{value:sunDir},uTime:{value:0}},
+ vertexShader:`varying vec3 vDir; void main(){ vDir=position;
+   gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+ fragmentShader:`uniform vec3 uSunDir; uniform float uTime; varying vec3 vDir;
+ void main(){
+   vec3 d=normalize(vDir);
+   float h=clamp(d.y,0.0,1.0);
+   vec3 zen=vec3(0.09,0.14,0.22), mid=vec3(0.34,0.38,0.46), hor=vec3(0.85,0.57,0.36);
+   vec3 col=mix(hor,mid,smoothstep(0.0,0.32,h));
+   col=mix(col,zen,smoothstep(0.22,0.85,h));
+   float s=max(dot(d,normalize(uSunDir)),0.0);
+   vec3 sunC=vec3(1.0,0.83,0.60);
+   col+=sunC*(pow(s,900.0)*1.5+pow(s,110.0)*0.55+pow(s,10.0)*0.20);
+   vec2 uv=d.xz/(d.y+1.15);
+   vec2 cell=floor(uv*90.0);
+   float rnd=fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453);
+   float star=step(0.9975,rnd)*smoothstep(0.28,0.6,d.y);
+   star*=0.55+0.45*sin(uTime*1.7+rnd*61.0);
+   col+=vec3(0.85,0.9,1.0)*star*0.45;
+   gl_FragColor=vec4(col,1.0);
+ }`});
+const sky=new THREE.Mesh(new THREE.SphereGeometry(380,32,20),skyMat);
+sky.frustumCulled=false; sky.renderOrder=-10; scene.add(sky);
+ 
+function waterHeightAt(x,z,t){
+ return .10*Math.sin(x*.10+t*.90)
+      + .06*Math.sin(z*.16+x*.096+t*.62)
+      + .09*Math.sin((x+z)*.05+t*.34);
+}
+const waterMat=new THREE.ShaderMaterial({transparent:true,
+ uniforms:{uTime:{value:0},uSunDir:{value:sunDir},uSunColor:{value:new THREE.Color(1,.78,.5)},
+  uFogColor:{value:FOG_COLOR},uFogNear:{value:38},uFogFar:{value:150}},
+ vertexShader:`uniform float uTime; varying vec3 vN; varying vec3 vW; varying float vH;
+ void main(){
+   vec3 p=position; float t=uTime;
+   float h=0.10*sin(p.x*0.10+t*0.90)+0.06*sin(p.z*0.16+p.x*0.096+t*0.62)+0.09*sin((p.x+p.z)*0.05+t*0.34);
+   p.y+=h;
+   float dhx=0.010*cos(p.x*0.10+t*0.90)+0.00576*cos(p.z*0.16+p.x*0.096+t*0.62)+0.0045*cos((p.x+p.z)*0.05+t*0.34);
+   float dhz=0.0096*cos(p.z*0.16+p.x*0.096+t*0.62)+0.0045*cos((p.x+p.z)*0.05+t*0.34);
+   vN=normalize(vec3(-dhx*10.0,1.0,-dhz*10.0)); vH=h;
+   vec4 wp=modelMatrix*vec4(p,1.0); vW=wp.xyz;
+   gl_Position=projectionMatrix*viewMatrix*wp;
+ }`,
+ fragmentShader:`uniform vec3 uSunDir; uniform vec3 uSunColor; uniform vec3 uFogColor;
+ uniform float uFogNear; uniform float uFogFar;
+ varying vec3 vN; varying vec3 vW; varying float vH;
+ void main(){
+   vec3 N=normalize(vN);
+   vec3 V=normalize(cameraPosition-vW);
+   float ndv=max(dot(N,V),0.0);
+   float fres=pow(1.0-ndv,2.0);
+   vec3 deep=vec3(0.028,0.135,0.145), shallow=vec3(0.06,0.23,0.23);
+   vec3 col=mix(deep,shallow,clamp(vH*2.2+0.5,0.0,1.0)*0.6);
+   vec3 R=reflect(-V,N);
+   vec3 skyRef=mix(vec3(0.85,0.56,0.36),vec3(0.13,0.17,0.26),clamp(R.y*1.7,0.0,1.0));
+   col=mix(col,skyRef,fres*0.92);
+   vec3 L=normalize(uSunDir); vec3 H=normalize(L+V);
+   float nh=max(dot(N,H),0.0);
+   col+=uSunColor*(pow(nh,260.0)*2.6+pow(nh,48.0)*0.12);
+   float alpha=mix(0.58,0.97,fres);
+   float dist=length(cameraPosition-vW);
+   col=mix(col,uFogColor,smoothstep(uFogNear,uFogFar,dist));
+   gl_FragColor=vec4(col,alpha);
+ }`});
+const waterGeo=new THREE.PlaneGeometry(80,80,120,120); waterGeo.rotateX(-Math.PI/2);
+const water=new THREE.Mesh(waterGeo,waterMat); water.renderOrder=1; scene.add(water);
+ 
+const bed=new THREE.Mesh(new THREE.CircleGeometry(60,24),
+ new THREE.MeshBasicMaterial({color:0x062326}));
+bed.rotation.x=-Math.PI/2; bed.position.y=-2.6; scene.add(bed);
+const landShape=new THREE.Shape(); landShape.absarc(0,0,200,0,Math.PI*2,false);
+const hole=new THREE.Path(); hole.absarc(0,0,33,0,Math.PI*2,true); landShape.holes.push(hole);
+const landGeo=new THREE.ShapeGeometry(landShape,48); landGeo.rotateX(-Math.PI/2);
+const land=new THREE.Mesh(landGeo,new THREE.MeshStandardMaterial({color:0x41502f,roughness:1}));
+land.position.y=.28; land.receiveShadow=true; scene.add(land);
+ 
+const hillMat=new THREE.MeshBasicMaterial({color:0x3a4a42});
+for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+rnd(-.2,.2), r=rnd(100,140);
+ const h=new THREE.Mesh(new THREE.SphereGeometry(1,20,12),hillMat);
+ h.scale.set(rnd(18,34),rnd(6,11),rnd(18,34)); h.position.set(Math.cos(a)*r,0,Math.sin(a)*r); scene.add(h);}
+for(let i=0;i<2;i++){ const a=rnd(0,6.28), r=rnd(150,170);
+ const m=new THREE.Mesh(new THREE.ConeGeometry(30,26,5),new THREE.MeshBasicMaterial({color:0x36453f}));
+ m.position.set(Math.cos(a)*r,4,Math.sin(a)*r); m.rotation.y=rnd(0,3); scene.add(m);}
+ 
+const dummy=new THREE.Object3D(), tmpC=new THREE.Color();
+function scatter(mesh,items,colorA,colorB){
+ items.forEach((it,i)=>{ dummy.position.copy(it.p); dummy.rotation.y=it.r||0;
+  dummy.scale.setScalar(it.s||1); dummy.updateMatrix(); mesh.setMatrixAt(i,dummy.matrix);
+  if(colorA){ tmpC.copy(colorA).lerp(colorB,Math.random()); mesh.setColorAt(i,tmpC);} });
+ if(colorA)mesh.instanceColor.needsUpdate=true;
+ scene.add(mesh);
+}
+const notDock=(x,z)=>!(Math.abs(x)<7&&z>22);
+const pines=[],reeds=[],reedHeads=[],lilies=[],rocks=[],grass=[];
+for(let i=0;i<64;i++){ let x,z; do{const a=Math.random()*Math.PI*2,r=rnd(37,58);x=Math.cos(a)*r;z=Math.sin(a)*r;}while(!notDock(x,z));
+ pines.push({p:new THREE.Vector3(x,.25,z),r:rnd(0,6),s:rnd(.8,1.7)});}
+for(let c=0;c<9;c++){ const a=rnd(0,Math.PI*2); if(Math.abs(Math.sin(a))<.28&&Math.cos(a)>0)continue;
+ const cx=Math.cos(a)*rnd(33,36),cz=Math.sin(a)*rnd(33,36),n=12+(Math.random()*10|0);
+ for(let i=0;i<n;i++){const s=rnd(.7,1.3);
+  reeds.push({p:new THREE.Vector3(cx+rnd(-1.6,1.6),0,cz+rnd(-1.6,1.6)),r:rnd(0,6),s});
+  if(Math.random()<.3)reedHeads.push({p:reeds[reeds.length-1].p.clone(),r:0,s});}}
+for(let i=0;i<24;i++){ let a=rnd(0,6.28),r=rnd(33.5,40); lilies.push({p:new THREE.Vector3(Math.cos(a)*r,.28,Math.sin(a)*r),r:rnd(0,6),s:rnd(.7,1.4)});}
+for(let i=0;i<22;i++){ const a=rnd(0,6.28),r=rnd(33.5,40);
+ rocks.push({p:new THREE.Vector3(Math.cos(a)*r,.1,Math.sin(a)*r),r:rnd(0,6),s:rnd(.3,1.1)});}
+for(let i=0;i<4;i++){ const a=rnd(0,6.28),r=rnd(18,26);
+ rocks.push({p:new THREE.Vector3(Math.cos(a)*r,-.55,Math.sin(a)*r),r:rnd(0,6),s:rnd(1.1,1.8)});}
+for(let i=0;i<130;i++){ let x,z; do{const a=Math.random()*Math.PI*2,r=rnd(36,52);x=Math.cos(a)*r;z=Math.sin(a)*r;}while(!notDock(x,z));
+ grass.push({p:new THREE.Vector3(x,.25,z),r:rnd(0,6),s:rnd(.7,1.5)});}
+ 
+const pineTrunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.14,.22,1.4,6),
+ new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),pines.length);
+const pineTops=new THREE.InstancedMesh(new THREE.ConeGeometry(1.5,3.9,7),
+ new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),pines.length);
+pines.forEach((it,i)=>{
+ dummy.position.copy(it.p).setY(.8*it.s);dummy.rotation.y=it.r;dummy.scale.setScalar(it.s);dummy.updateMatrix();pineTrunks.setMatrixAt(i,dummy.matrix);
+ dummy.position.copy(it.p).setY((1.3+1.9)*it.s);dummy.updateMatrix();pineTops.setMatrixAt(i,dummy.matrix);
+ tmpC.set(0x54402c);pineTrunks.setColorAt(i,tmpC);
+ tmpC.set(0x2c4634).lerp(new THREE.Color(0x3c5a40),Math.random());pineTops.setColorAt(i,tmpC);});
+pineTrunks.instanceColor.needsUpdate=pineTops.instanceColor.needsUpdate=true;
+pineTops.castShadow=true; scene.add(pineTrunks,pineTops);
+ 
+const reedGeo=new THREE.ConeGeometry(.05,2.3,5); reedGeo.translate(0,1.15,0);
+scatter(new THREE.InstancedMesh(reedGeo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),reeds.length),
+ reeds,new THREE.Color(0x4a6b3f),new THREE.Color(0x5d7a48));
+const headGeo=new THREE.CylinderGeometry(.055,.055,.44,5); headGeo.translate(0,2.15,0);
+scatter(new THREE.InstancedMesh(headGeo,new THREE.MeshStandardMaterial({color:0x6b4a2f,roughness:1}),reedHeads.length),reedHeads,null,null);
+const padShape=new THREE.Shape(); padShape.absarc(0,0,1,.42,Math.PI*2-.42,false); padShape.lineTo(0,0);
+const padGeo=new THREE.ShapeGeometry(padShape,14); padGeo.rotateX(-Math.PI/2);
+scatter(new THREE.InstancedMesh(padGeo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9,side:THREE.DoubleSide}),lilies.length),
+ lilies,new THREE.Color(0x33613f),new THREE.Color(0x4a7a52));
+scatter(new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.7,0),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),rocks.length),
+ rocks,new THREE.Color(0x6a655c),new THREE.Color(0x7c766a));
+scatter(new THREE.InstancedMesh(new THREE.ConeGeometry(.08,.55,4),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),grass.length),
+ grass,new THREE.Color(0x46512e),new THREE.Color(0x5a6a38));
+[[Math.cos(1.1)*35.2,.28,Math.sin(1.1)*35.2],[Math.cos(2.4)*34.4,.28,Math.sin(2.4)*34.4]].forEach(p=>{
+ const fl=new THREE.Group();
+ const petals=new THREE.Mesh(new THREE.IcosahedronGeometry(.16,0),new THREE.MeshStandardMaterial({color:0xd98aa0,roughness:.8,flatShading:true}));
+ petals.position.y=.12; fl.add(petals);
+ fl.add(new THREE.Mesh(new THREE.SphereGeometry(.05,6,5),new THREE.MeshStandardMaterial({color:0xe8c15a})));
+ fl.position.set(p[0],p[1],p[2]); scene.add(fl);});
+ 
+const dock=new THREE.Group(); scene.add(dock);
+const plankMats=[0x7d5f42,0x74583d,0x86684a].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.95}));
+for(let i=0;i<13;i++){ const p=new THREE.Mesh(new THREE.BoxGeometry(2.3,.14,.74),plankMats[i%3]);
+ p.position.set(0,.92,35.6-i*.86); p.rotation.y=rnd(-.02,.02); p.castShadow=p.receiveShadow=true; dock.add(p);}
+const postMat=new THREE.MeshStandardMaterial({color:0x5f4630,roughness:1});
+for(let i=0;i<5;i++){ [-1,1].forEach(side=>{ const post=new THREE.Mesh(new THREE.CylinderGeometry(.09,.11,2.6,7),postMat);
+ post.position.set(side*.95,-.25,35.2-i*2.4); post.castShadow=true; dock.add(post);});}
+const lantern=new THREE.Group(); lantern.position.set(-1.15,.95,25.6); dock.add(lantern);
+const lpost=new THREE.Mesh(new THREE.CylinderGeometry(.05,.07,1.8,6),postMat); lpost.position.y=.9; lpost.castShadow=true; lantern.add(lpost);
+const lbox=new THREE.Mesh(new THREE.BoxGeometry(.26,.34,.26),new THREE.MeshStandardMaterial({color:0x2b241d,roughness:.8}));
+lbox.position.y=1.9; lantern.add(lbox);
+const pane=new THREE.Mesh(new THREE.BoxGeometry(.19,.24,.19),new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffb45e,emissiveIntensity:2.6}));
+pane.position.y=1.9; lantern.add(pane);
+const roof=new THREE.Mesh(new THREE.ConeGeometry(.25,.18,4),new THREE.MeshStandardMaterial({color:0x2b241d,roughness:.8}));
+roof.position.y=2.13; roof.rotation.y=.78; lantern.add(roof);
+lanternLight.position.set(-1.15,2.85,25.6);
+const bucket=new THREE.Mesh(new THREE.CylinderGeometry(.3,.24,.44,10),new THREE.MeshStandardMaterial({color:0x5d4a37,roughness:1}));
+bucket.position.set(-.85,1.18,27.2); bucket.castShadow=true; scene.add(bucket);
+const tackle=new THREE.Mesh(new THREE.BoxGeometry(.52,.3,.34),new THREE.MeshStandardMaterial({color:0x8a4f39,roughness:.9}));
+tackle.position.set(.8,1.13,27.3); tackle.castShadow=true; scene.add(tackle);
+ 
+const angler=new THREE.Group(); angler.position.set(0,.99,26.1); scene.add(angler);
+const skin=new THREE.MeshStandardMaterial({color:0xe8b48f,roughness:.9});
+[[-.14,.15,0],[.14,.15,0]].forEach(p=>{const b=new THREE.Mesh(new THREE.BoxGeometry(.16,.3,.26),new THREE.MeshStandardMaterial({color:0x35302a,roughness:1}));b.position.set(...p);b.castShadow=true;angler.add(b);});
+const pants=new THREE.Mesh(new THREE.BoxGeometry(.34,.4,.3),new THREE.MeshStandardMaterial({color:0x4a4438,roughness:1}));
+pants.position.y=.5; angler.add(pants);
+const jacket=new THREE.Mesh(new THREE.CapsuleGeometry(.27,.5,4,8),new THREE.MeshStandardMaterial({color:0xa4553f,roughness:1,flatShading:true}));
+jacket.position.y=.98; jacket.castShadow=true; angler.add(jacket);
+[[-.26,1.1,-.12,-1.05],[.26,1.08,-.2,-1.25]].forEach(a=>{const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.34,4,6),jacket.material);
+ arm.position.set(a[0],a[1],a[2]); arm.rotation.x=a[3]; arm.castShadow=true; angler.add(arm);});
+const head=new THREE.Mesh(new THREE.SphereGeometry(.19,16,12),skin); head.position.y=1.54; head.castShadow=true; angler.add(head);
+const hatM=new THREE.MeshStandardMaterial({color:0xc9a36a,roughness:1});
+const crown=new THREE.Mesh(new THREE.CylinderGeometry(.13,.15,.16,10),hatM); crown.position.y=1.73; angler.add(crown);
+const brim=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.03,12),hatM); brim.position.y=1.66; brim.castShadow=true; angler.add(brim);
+const rodG=new THREE.Group(); rodG.position.set(.05,1.18,-.3); rodG.rotation.x=-.85; angler.add(rodG);
+const rodMat=new THREE.MeshStandardMaterial({color:0x38291f,roughness:.8});
+const rod=new THREE.Mesh(new THREE.CylinderGeometry(.012,.03,2.4,6),rodMat); rod.position.y=1.2; rod.castShadow=true; rodG.add(rod);
+const grip=new THREE.Mesh(new THREE.CylinderGeometry(.032,.034,.5,6),new THREE.MeshStandardMaterial({color:0x241a12,roughness:1}));
+grip.position.y=.25; rodG.add(grip);
+const reel=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.07,8),new THREE.MeshStandardMaterial({color:0x8a8378,roughness:.5,metalness:.5}));
+reel.rotation.x=Math.PI/2; reel.position.set(0,.55,-.08); rodG.add(reel);
+const rodTip=new THREE.Object3D(); rodTip.position.y=2.42; rodG.add(rodTip);
+ 
+const bobber=new THREE.Group();
+bobber.add(new THREE.Mesh(new THREE.SphereGeometry(.11,12,7,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0xc8402e,roughness:.5})));
+bobber.add(new THREE.Mesh(new THREE.SphereGeometry(.11,12,7,0,Math.PI*2,Math.PI/2,Math.PI/2),new THREE.MeshStandardMaterial({color:0xf2ead8,roughness:.5})));
+const ant=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.14,5),new THREE.MeshStandardMaterial({color:0xf2ead8}));
+ant.position.y=.16; bobber.add(ant);
+bobber.visible=false; scene.add(bobber);
+ 
+const lineGeo=new THREE.BufferGeometry();
+const linePos=new Float32Array(24*3), lineCol=new Float32Array(24*3);
+lineGeo.setAttribute('position',new THREE.BufferAttribute(linePos,3));
+lineGeo.setAttribute('color',new THREE.BufferAttribute(lineCol,3));
+const lineMat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.9});
+const line=new THREE.Line(lineGeo,lineMat); line.frustumCulled=false; line.visible=false; scene.add(line);
+const INK=new THREE.Color(0x201812), INKD=new THREE.Color(0x6a5a48);
+function updateLine(p0,p2,sag,dimSecond,pMid){
+ const a=p0,b=pMid||p0.clone().add(p2).multiplyScalar(.5).sub(new THREE.Vector3(0,sag,0)),c=p2;
+ for(let i=0;i<24;i++){const t=i/23,it=1-t;
+  linePos[i*3]  =a.x*it*it+b.x*2*t*it+c.x*t*t;
+  linePos[i*3+1]=a.y*it*it+b.y*2*t*it+c.y*t*t;
+  linePos[i*3+2]=a.z*it*it+b.z*2*t*it+c.z*t*t;
+  const cc=(dimSecond&&i>11)?INKD:INK;
+  lineCol[i*3]=cc.r;lineCol[i*3+1]=cc.g;lineCol[i*3+2]=cc.b;}
+ lineGeo.attributes.position.needsUpdate=true;lineGeo.attributes.color.needsUpdate=true;}
+ 
+const marker=new THREE.Mesh(new THREE.RingGeometry(.5,.62,40),
+ new THREE.MeshBasicMaterial({color:0xf2e8d0,transparent:true,opacity:.75,side:THREE.DoubleSide,depthWrite:false}));
+marker.rotation.x=-Math.PI/2; marker.visible=false; marker.renderOrder=3; scene.add(marker);
+ 
+const ripples=[];
+for(let i=0;i<16;i++){ const m=new THREE.Mesh(new THREE.RingGeometry(.3,.38,36),
+ new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+ m.rotation.x=-Math.PI/2; m.visible=false; m.renderOrder=2; scene.add(m); ripples.push({m,t:0,dur:1});}
+function spawnRipple(x,z,scale=1,dur=.9,op=.5){ const r=ripples.find(r=>!r.m.visible)||ripples[0];
+ r.m.visible=true; r.t=0; r.dur=dur; r.op=op; r.s=scale;
+ r.m.position.set(x,waterHeightAt(x,z,T)+.05,z);}
+function updateRipples(dt){ for(const r of ripples){ if(!r.m.visible)continue; r.t+=dt;
+ const k=r.t/r.dur; if(k>=1){r.m.visible=false;continue;}
+ const e=1-Math.pow(1-k,2.5); r.m.scale.setScalar(lerp(.5,5*r.s,e)); r.m.material.opacity=r.op*(1-k);}}
+ 
+class Puff{
+ constructor(n,color,size,additive){
+  this.n=n;this.cursor=0;
+  this.pos=new Float32Array(n*3);this.vel=new Float32Array(n*3);
+  this.life=new Float32Array(n);this.max=new Float32Array(n);this.aA=new Float32Array(n);
+  for(let i=0;i<n;i++)this.pos[i*3+1]=-60;
+  const geo=new THREE.BufferGeometry();
+  this.pAttr=new THREE.BufferAttribute(this.pos,3);geo.setAttribute('position',this.pAttr);
+  this.aAttr=new THREE.BufferAttribute(this.aA,1);geo.setAttribute('aAlpha',this.aAttr);
+  const sz=new Float32Array(n).fill(size);geo.setAttribute('aSize',new THREE.BufferAttribute(sz,1));
+  const mat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
+   blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,
+   uniforms:{uColor:{value:new THREE.Color(color)}},
+   vertexShader:`attribute float aAlpha; attribute float aSize; varying float vA;
+    void main(){vA=aAlpha;vec4 mv=modelViewMatrix*vec4(position,1.0);
+    gl_PointSize=aSize*(260.0/max(1.0,-mv.z));gl_Position=projectionMatrix*mv;}`,
+   fragmentShader:`uniform vec3 uColor; varying float vA;
+    void main(){float d=length(gl_PointCoord-0.5);float m=smoothstep(0.5,0.12,d);
+    gl_FragColor=vec4(uColor,vA*m);}`});
+  this.mesh=new THREE.Points(geo,mat);this.mesh.frustumCulled=false;scene.add(this.mesh);}
+ burst(x,y,z,count,power=1,life=.75){
+  for(let c=0;c<count;c++){const i=this.cursor=(this.cursor+1)%this.n,j=i*3;
+   this.pos[j]=x;this.pos[j+1]=y;this.pos[j+2]=z;
+   const a=Math.random()*Math.PI*2,r=(.4+Math.random()*1.5)*power;
+   this.vel[j]=Math.cos(a)*r;this.vel[j+2]=Math.sin(a)*r;this.vel[j+1]=(1.6+Math.random()*3.4)*power;
+   this.life[i]=this.max[i]=life*rnd(.6,1.2);}}
+ update(dt){for(let i=0;i<this.n;i++){if(this.life[i]<=0){if(this.aA[i]!==0)this.aA[i]=0;continue;}
+   this.life[i]-=dt;const j=i*3;this.vel[j+1]-=9.6*dt;
+   this.pos[j]+=this.vel[j]*dt;this.pos[j+1]+=this.vel[j+1]*dt;this.pos[j+2]+=this.vel[j+2]*dt;
+   if(this.pos[j+1]<waterHeightAt(this.pos[j],this.pos[j+2],T)-.15){this.life[i]=0;this.aA[i]=0;continue;}
+   const k=Math.max(0,this.life[i]/this.max[i]);this.aA[i]=k*k*.95;}
+  this.pAttr.needsUpdate=true;this.aAttr.needsUpdate=true;}
+}
+const splashPool=new Puff(110,0xf5efe2,.16,true);
+const sparklePool=new Puff(40,0xffd27a,.13,true);
+ 
+const FF=44,ffPos=new Float32Array(FF*3),ffPh=new Float32Array(FF),ffSz=new Float32Array(FF);
+for(let i=0;i<FF;i++){const a=rnd(0,6.28),r=rnd(30,36);
+ ffPos[i*3]=Math.cos(a)*r;ffPos[i*3+1]=rnd(.5,1.7);ffPos[i*3+2]=Math.sin(a)*r;
+ ffPh[i]=rnd(0,10);ffSz[i]=rnd(.1,.2);}
+const ffGeo=new THREE.BufferGeometry();
+ffGeo.setAttribute('position',new THREE.BufferAttribute(ffPos,3));
+ffGeo.setAttribute('aPhase',new THREE.BufferAttribute(ffPh,1));
+ffGeo.setAttribute('aSize',new THREE.BufferAttribute(ffSz,1));
+const ffMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+ uniforms:{uTime:{value:0}},
+ vertexShader:`uniform float uTime; attribute float aPhase; attribute float aSize; varying float vA;
+ void main(){vec3 p=position;
+  p.y+=sin(uTime*0.6+aPhase)*0.4;p.x+=sin(uTime*0.35+aPhase*1.7)*0.25;p.z+=cos(uTime*0.45+aPhase*2.3)*0.25;
+  vA=0.2+0.8*pow(0.5+0.5*sin(uTime*2.2+aPhase*4.0),2.0);
+  vec4 mv=modelViewMatrix*vec4(p,1.0);
+  gl_PointSize=aSize*(200.0/max(1.0,-mv.z));gl_Position=projectionMatrix*mv;}`,
+ fragmentShader:`varying float vA;
+ void main(){float d=length(gl_PointCoord-0.5);float m=smoothstep(0.5,0.1,d);
+ gl_FragColor=vec4(0.82,1.0,0.55,vA*m*0.8);}`});
+const fireflies=new THREE.Points(ffGeo,ffMat);fireflies.frustumCulled=false;scene.add(fireflies);
+ 
+const cnv=document.createElement('canvas');cnv.width=cnv.height=128;
+const c2=cnv.getContext('2d');
+c2.beginPath();c2.arc(64,64,52,0,7);c2.fillStyle='#f2e8d0';c2.fill();
+c2.lineWidth=8;c2.strokeStyle='#221b12';c2.stroke();
+c2.fillStyle='#b23a2b';c2.font='900 80px Georgia';c2.textAlign='center';c2.textBaseline='middle';c2.fillText('!',64,70);
+const alertTex=new THREE.CanvasTexture(cnv);alertTex.colorSpace=THREE.SRGBColorSpace;
+const alertSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:alertTex,transparent:true,depthTest:false}));
+alertSpr.renderOrder=5;alertSpr.scale.setScalar(0);scene.add(alertSpr);
+ 
+/* ============================================================ fish — 10 big species, all carry mail */
+const SPECIES={
+ bass:    {name:'Largemouth Bass', L:1.15,body:0x4e7a4a,belly:0xd8d29a,fin:0x35593a,speed:1.15,pull:.85, prof:.72,fat:1.18,flat:.52},
+ trout:   {name:'Rainbow Trout',  L:1.05,body:0x8fa9a0,belly:0xeadfce,fin:0xc47a6a,speed:1.3, pull:.75, prof:.80,fat:1.08,flat:.55},
+ carp:    {name:'Mirror Carp',    L:1.35,body:0xa8854e,belly:0xe8d5a8,fin:0x6e5f3e,speed:.9,  pull:1.1, prof:.66,fat:1.32,flat:.58},
+ catfish: {name:'Channel Catfish',L:1.5, body:0x5d6b74,belly:0xc9c4b4,fin:0x46525a,speed:.8,  pull:1.15,prof:.62,fat:1.0, flat:.60,whiskers:true},
+ pike:    {name:'Northern Pike',  L:1.7, body:0x53713e,belly:0xd8d2a8,fin:0x46603a,speed:1.2, pull:1.2, prof:.92,fat:.85, flat:.45,saddles:true},
+ musky:   {name:'Tiger Musky',    L:1.8, body:0x6b7a3a,belly:0xdad39a,fin:0x4f5f30,speed:1.25,pull:1.2, prof:.95,fat:.82, flat:.42,saddles:true},
+ gar:     {name:'Alligator Gar',  L:1.9, body:0x4a5a45,belly:0xb8b89a,fin:0x39452f,speed:.95, pull:1.15,prof:1.0, fat:.72, flat:.40,saddles:true,long:true},
+ sturgeon:{name:'Lake Sturgeon',  L:1.75,body:0x607386,belly:0xc4c8c2,fin:0x4a5a6a,speed:.75, pull:1.3, prof:.88,fat:.9,  flat:.50,ridges:true},
+ salmon:  {name:'Coho Salmon',    L:1.25,body:0x9a7d8e,belly:0xf0dcc8,fin:0x7a5a6a,speed:1.35,pull:.9,  prof:.78,fat:1.12,flat:.50},
+ koi:     {name:'Golden Koi',     L:1.0, body:0xf08c3a,belly:0xfff1dc,fin:0xd96a24,speed:1.5, pull:1.05,prof:.70,fat:1.22,flat:.55,rare:true}
+};
+const FISHCACHE={};
+function speciesAssets(key){
+ if(FISHCACHE[key])return FISHCACHE[key];
+ const sp=SPECIES[key],A={};
+ const L=sp.L,pts=[];
+ for(let i=0;i<=11;i++){const t=i/11;
+  let r=Math.sin(Math.PI*Math.pow(t,sp.prof))*.52+.02; if(t>.93)r=.05;
+  pts.push(new THREE.Vector2(Math.max(r,.012)*L*.5,t*L));}
+ const bodyGeo=new THREE.LatheGeometry(pts,9);
+ bodyGeo.rotateZ(-Math.PI/2);bodyGeo.translate(-L/2,0,0);bodyGeo.scale(1,sp.fat,sp.flat);
+ const cBody=new THREE.Color(sp.body),cBelly=new THREE.Color(sp.belly);
+ const pos=bodyGeo.attributes.position,col=new Float32Array(pos.count*3),tc=new THREE.Color();
+ for(let i=0;i<pos.count;i++){const ny=pos.getY(i)/(L*.3);
+  const f=THREE.MathUtils.smoothstep(ny,-.6,.5);
+  tc.copy(cBelly).lerp(cBody,f);col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b;}
+ bodyGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+ A.bodyGeo=bodyGeo;
+ A.bodyMat=new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.65,metalness:.05});
+ A.finMat=new THREE.MeshStandardMaterial({color:sp.fin,roughness:.7,flatShading:true,side:THREE.DoubleSide});
+ A.tailGeo=new THREE.ConeGeometry(.2*L,.4*L,4);
+ A.dorsalGeo=new THREE.ConeGeometry(.13*L,.24*L,4);
+ A.eyeGeo=new THREE.SphereGeometry(.034*L,6,5);
+ A.eyeMat=new THREE.MeshStandardMaterial({color:0x121110,roughness:.4});
+ if(sp.ridges||sp.saddles){
+  A.scuteGeo=new THREE.ConeGeometry(sp.ridges?.07*L:.09*L,sp.ridges?.11*L:.14*L,4);
+  A.scuteMat=new THREE.MeshStandardMaterial({color:sp.ridges?0x46586a:0x2f3d22,roughness:.8,flatShading:true});}
+ if(sp.long){A.snoutGeo=new THREE.ConeGeometry(.07*L,.3*L,6);}
+ if(sp.whiskers){A.whiskGeo=new THREE.CylinderGeometry(.005,.005,.32*L,3);
+  A.whiskMat=new THREE.MeshStandardMaterial({color:0x3a4046,roughness:1});}
+ FISHCACHE[key]=A; return A;
+}
+function buildFishMesh(key){
+ const sp=SPECIES[key],A=speciesAssets(key);
+ const g=new THREE.Group(); let tailG=null;
+ const L=sp.L;
+ g.add(new THREE.Mesh(A.bodyGeo,A.bodyMat));
+ tailG=new THREE.Group();tailG.position.x=-L/2+.03*L;g.add(tailG);
+ const tail=new THREE.Mesh(A.tailGeo,A.finMat);
+ tail.scale.z=.22;tail.rotation.z=-Math.PI/2;tail.position.x=-.19*L;tailG.add(tail);
+ const dorsal=new THREE.Mesh(A.dorsalGeo,A.finMat);
+ dorsal.scale.z=.18;dorsal.position.set(-.03*L,.3*L,0);g.add(dorsal);
+ [[.34*L,.06*L,.12*L],[.34*L,.06*L,-.12*L]].forEach(p=>{const e=new THREE.Mesh(A.eyeGeo,A.eyeMat);e.position.set(...p);g.add(e);});
+ if(A.scuteGeo){
+  const n=sp.ridges?6:4;
+  for(let i=0;i<n;i++){
+   const s=new THREE.Mesh(A.scuteGeo,A.scuteMat);
+   s.scale.z=.5;
+   s.position.set(.2*L-.12*L*i,.15*L*sp.fat,0);
+   g.add(s);}
+ }
+ if(A.snoutGeo){
+  const sn=new THREE.Mesh(A.snoutGeo,A.bodyMat);
+  sn.rotation.z=-Math.PI/2;
+  sn.position.set(.6*L,.005*L,0);
+  g.add(sn);
+ }
+ if(sp.whiskers){
+  for(let s=-1;s<=1;s+=2)for(let k=0;k<2;k++){const w=new THREE.Mesh(A.whiskGeo,A.whiskMat);
+   w.position.set(.48*L,-.02*L,s*(.06+k*.05)*L);w.rotation.z=1.2;w.rotation.y=s*.5;g.add(w);}}
+ return {group:g,tailG};
+}
+const ANCHOR=new THREE.Vector3(0,0,26.1);
+let fishes=[];
+class Fish{
+ constructor(key,email){
+  const sp=SPECIES[key];this.key=key;this.sp=sp;this.email=email;
+  this.weight=+(sp.L*rnd(.9,1.7)).toFixed(1);
+  const built=buildFishMesh(key);this.group=built.group;this.tailG=built.tailG;
+  this.state='wander';this.heading=rnd(0,6.28);this.spd=sp.speed*rnd(.8,1.2);
+  this.phase=rnd(0,10);this.interestCd=rnd(1,4);this.wag=5;this.fleeT=0;
+  let x,z;do{const a=rnd(0,6.28),r=rnd(10,26);x=Math.cos(a)*r;z=Math.sin(a)*r;}
+  while(G.bobberActive&&Math.hypot(x-G.bobberPos.x,z-G.bobberPos.z)<6);
+  this.group.position.set(x,-rnd(.6,1.4),z);
+  scene.add(this.group);
+ }
+ spook(){this.state='wander';this.interestCd=rnd(2.5,5);
+  if(G.suitor===this)G.suitor=null;}
+ interest(){this.state='interest';
+  const b=G.bobberPos;this.orbA=Math.atan2(this.group.position.z-b.z,this.group.position.x-b.x);
+  this.orbDir=Math.random()<.5?-1:1;this.orbT=0;this.patience=rnd(.9,2.2);this.wag=8;}
+ startJump(){
+  this.state='jump';this.jumpT=0;this.jumpDur=rnd(1.05,1.5);
+  const p=this.group.position;
+  this.jx0=p.x;this.jz0=p.z;
+  let tx=p.x+Math.cos(this.heading)*rnd(2.8,4.6);
+  let tz=p.z+Math.sin(this.heading)*rnd(2.8,4.6);
+  const r=Math.hypot(tx,tz);
+  if(r>26){tx*=25/r;tz*=25/r;}
+  this.jx1=tx;this.jz1=tz;
+  this.jumpH=rnd(1.5,2.3);
+  this.out=false;this.landed=false;this.wag=16;
+  if(G.suitor===this)G.suitor=null;
+ }
+ fightInit(){this.mode='calm';this.modeT=1.1;this.burstDur=.75;this.calmDur=1.9;
+  this.fatigue=.82;this.tension=.06;this.snapped=false;this.caughtFlag=false;this.fxT=0;
+  this.orbitDir=Math.random()<.5?-1:1;
+  const p=this.group.position;
+  this.lineLen=Math.min(20,Math.hypot(p.x-ANCHOR.x,p.z-ANCHOR.z));}
+ fight(dt,holding){
+  this.modeT-=dt;
+  if(this.modeT<=0){
+   if(this.mode!=='burst'){this.mode='burst';this.burstDur=Math.max(.45,this.burstDur*this.fatigue);this.modeT=this.burstDur;
+    this.orbitDir=Math.random()<.5?-1:1;SFX.thrash();}
+   else{this.mode='calm';this.calmDur=Math.min(3.4,this.calmDur*1.16);this.modeT=this.calmDur;}
+  }
+  const p=this.group.position,dx=p.x-ANCHOR.x,dz=p.z-ANCHOR.z;
+  if(this.mode==='burst'){const away=Math.atan2(dz,dx);
+   this.heading=lerpAngle(this.heading,away+this.orbitDir*.8,3.2*dt);
+   this.spd=2.6*this.sp.pull;this.wag=18;}
+  else{this.heading+=Math.sin(T*2+this.phase)*dt*.8;this.spd=.5;
+   this.wag=this.modeT<.5?12:5;}
+  if(p.z>23.5)this.heading=lerpAngle(this.heading,-Math.PI/2,4*dt);
+  p.x+=Math.cos(this.heading)*this.spd*dt;p.z+=Math.sin(this.heading)*this.spd*dt;
+  const ty=this.mode==='burst'?-1.25:-.7;
+  p.y+=(ty-p.y)*Math.min(1,dt*2);
+  const d=Math.hypot(p.x-ANCHOR.x,p.z-ANCHOR.z);
+  if(d>this.lineLen){const k=this.lineLen/d;
+   p.x=ANCHOR.x+(p.x-ANCHOR.x)*k;p.z=ANCHOR.z+(p.z-ANCHOR.z)*k;}
+  if(holding){this.lineLen-=dt*(this.mode==='burst'?.9:3.4);
+   this.tension+=dt*(this.mode==='burst'?.5*this.sp.pull:.075);}
+  else{this.tension-=dt*(this.mode==='burst'?.35:.85);
+   if(this.mode==='burst')this.lineLen=Math.min(28,this.lineLen+dt*1.1*this.sp.pull);}
+  this.lineLen=Math.max(.8,this.lineLen);this.tension=clamp(this.tension,0,1);
+  if(this.tension>=1){this.snapped=true;return;}
+  if(this.lineLen<=2.4){this.caughtFlag=true;return;}
+  if(this.mode==='burst'){this.fxT-=dt;
+   if(this.fxT<=0){this.fxT=.4;spawnRipple(p.x,p.z,.8,.7,.35);splashPool.burst(p.x,.06,p.z,5,.5,.5);}}
+ }
+ update(dt){
+  const p=this.group.position;
+  if(this.state==='caught')return;
+  if(this.state==='hooked'){this.fight(dt,G.reeling);this.applyVisual(dt);return;}
+  if(this.state==='jump'){
+   this.jumpT+=dt;
+   const k=Math.min(1,this.jumpT/this.jumpDur);
+   p.x=lerp(this.jx0,this.jx1,k);
+   p.z=lerp(this.jz0,this.jz1,k);
+   p.y=-.8+this.jumpH*4*k*(1-k);
+   const wy=waterHeightAt(p.x,p.z,T);
+   if(!this.out&&p.y>wy+.05){this.out=true;
+    spawnRipple(p.x,p.z,1.1,.8,.5);splashPool.burst(p.x,.05,p.z,14,1.1);SFX.splash(1);}
+   if(this.out&&!this.landed&&k>.55&&p.y<wy+.05){this.landed=true;
+    spawnRipple(p.x,p.z,1.2,.9,.55);splashPool.burst(p.x,.05,p.z,10,.9);SFX.splash(.8);}
+   this.group.rotation.y=-this.heading;
+   this.group.rotation.z=lerp(1.05,-1.2,Math.min(1,k*1.06));
+   this.group.rotation.x=Math.sin(k*Math.PI*2)*.5;
+   if(this.tailG)this.tailG.rotation.y=Math.sin(T*20+this.phase)*.6;
+   if(k>=1){
+    p.set(this.jx1,-.8,this.jz1);
+    this.group.rotation.set(0,-this.heading,0);
+    if(!this.landed){spawnRipple(p.x,p.z,1.3,.9,.55);splashPool.burst(p.x,.05,p.z,10,.9);SFX.splash(.8);}
+    this.state='wander';this.interestCd=rnd(2,5);this.wag=this.sp.speed*4;
+   }
+   return;
+  }
+  if(this.state==='flee'){this.fleeT-=dt;this.spd=3.5;this.wag=16;
+   p.x+=Math.cos(this.heading)*this.spd*dt;p.z+=Math.sin(this.heading)*this.spd*dt;
+   if(this.fleeT<=0)this.state='wander';this.applyVisual(dt);return;}
+  if(this.state==='wander'){
+   this.interestCd-=dt;
+   const b=G.bobberPos;
+   const hunting=G.state==='wait'&&G.bobberActive&&!G.suitor&&this.interestCd<=0;
+   const d=hunting?Math.hypot(p.x-b.x,p.z-b.z):1e9;
+   if(hunting&&d<16&&d>2.6){
+    this.heading=lerpAngle(this.heading,Math.atan2(b.z-p.z,b.x-p.x),dt*1.4);
+    this.spd=this.sp.speed*1.6;this.wag=this.sp.speed*7;
+   }else{
+    this.heading+=Math.sin(T*.5+this.phase)*dt*.6;
+    const r=Math.hypot(p.x,p.z);
+    if(r>26)this.heading=lerpAngle(this.heading,Math.atan2(-p.z,-p.x),1.6*dt);
+    this.spd=this.sp.speed;this.wag=this.sp.speed*4;
+   }
+   p.x+=Math.cos(this.heading)*this.spd*dt;p.z+=Math.sin(this.heading)*this.spd*dt;
+   p.y+=((-.8+Math.sin(T*.6+this.phase)*.4)-p.y)*Math.min(1,dt);
+   if(hunting&&d<13&&Math.random()<dt*(G.waitT>9?2.4:.5)){
+    this.interest();G.suitor=this;}
+   this.applyVisual(dt);return;
+  }
+  if(this.state==='interest'){
+   const b=G.bobberPos;this.orbT+=dt;this.orbA+=dt*1.1*this.orbDir;
+   const orbR=Math.max(.6,2-this.orbT*.32);
+   const tx=b.x+Math.cos(this.orbA)*orbR,tz=b.z+Math.sin(this.orbA)*orbR;
+   this.heading=lerpAngle(this.heading,Math.atan2(tz-p.z,tx-p.x),4*dt);
+   this.spd=1.8;
+   p.x+=Math.cos(this.heading)*this.spd*dt;p.z+=Math.sin(this.heading)*this.spd*dt;
+   p.y+=((-.55)-p.y)*Math.min(1,dt*2);
+   this.patience-=dt;
+   if(this.patience<=0){
+    if(Math.random()<.85){this.state='nibble';this.nibT=.55;this.nibbled=false;}
+    else this.spook();
+   }
+   this.applyVisual(dt);return;
+  }
+  if(this.state==='nibble'){
+   this.nibT-=dt;this.wag=12;this.spd=3.2;
+   this.heading=lerpAngle(this.heading,Math.atan2(G.bobberPos.z-p.z,G.bobberPos.x-p.x),8*dt);
+   p.x+=Math.cos(this.heading)*this.spd*dt;p.z+=Math.sin(this.heading)*this.spd*dt;
+   p.y+=((-.4)-p.y)*Math.min(1,dt*3);
+   if(!this.nibbled&&Math.hypot(p.x-G.bobberPos.x,p.z-G.bobberPos.z)<.55){
+    this.nibbled=true;G.bobberDipV=-1.4;spawnRipple(G.bobberPos.x,G.bobberPos.z,.6,.7,.35);SFX.plop();}
+   if(this.nibT<=0){
+    if(this.nibbled&&Math.random()<.88){this.state='bite';onBite(this);}
+    else this.spook();
+   }
+   this.applyVisual(dt);return;
+  }
+  if(this.state==='bite'){
+   this.wag=16;
+   p.x+=(G.bobberPos.x-p.x)*Math.min(1,dt*6);
+   p.z+=(G.bobberPos.z-p.z)*Math.min(1,dt*6);
+   p.y+=((-.35)-p.y)*Math.min(1,dt*3);
+   this.applyVisual(dt);return;
+  }
+ }
+ applyVisual(dt){
+  if(this.tailG)this.tailG.rotation.y=Math.sin(T*this.wag+this.phase)*.55;
+  this.group.rotation.y=-this.heading+Math.sin(T*this.wag*.9+this.phase)*.06;
+  this.group.rotation.z=0;this.group.rotation.x=0;
+ }
+ remove(){scene.remove(this.group);}
+}
+function pickMsgSpecies(){const r=Math.random();
+ return r<.14?'bass':r<.27?'trout':r<.38?'carp':r<.49?'catfish':r<.60?'pike'
+       :r<.70?'musky':r<.79?'gar':r<.88?'sturgeon':r<.94?'salmon':'koi';}
+function spawnFish(){
+ if(G.assigned>=G.deck.length)return;
+ fishes.push(new Fish(pickMsgSpecies(),G.deck[G.assigned++]));
+}
+function spawnFishWithEmail(key,email){fishes.push(new Fish(key,email));}
+/* staggered jump scheduler — one fish leaps every ~5-7 seconds */
+const JUMP={t:rnd(2,5)};
+function updateJumps(dt){
+ if(G.state==='end'||G.state==='inspect')return;
+ JUMP.t-=dt;
+ if(JUMP.t>0)return;
+ JUMP.t=rnd(4.5,7.5);
+ const cands=fishes.filter(f=>f.state==='wander'&&
+  (!G.bobberActive||Math.hypot(f.group.position.x-G.bobberPos.x,f.group.position.z-G.bobberPos.z)>5));
+ if(cands.length)cands[(Math.random()*cands.length)|0].startJump();
+}
+ 
+/* ============================================================ game state */
+const SHIFT_LEN=12;
+const LAKE_STOCK=30;
+const G={
+ state:'title',score:0,dispScore:0,streak:0,inspected:0,results:[],
+ deck:[],assigned:0,suitor:null,fish:null,biteFish:null,biteT:0,
+ bobberActive:false,bobberPos:new THREE.Vector3(),bobberDip:0,bobberDipV:0,
+ waitT:0,rippleT:0,castPow:0,castT:0,aimYaw:0,castFrom:new THREE.Vector3(),castTo:new THREE.Vector3(),
+ reeling:false,timeScale:1,timeScaleTarget:1,shiftTime:0,started:false,mx:0,
+ currentEmail:null,currentFish:null,cardShownAt:0,lineEntry:new THREE.Vector3(),
+ lastCreak:0,lastTick:0,
+ badges:new Set(),quickCount:0,maxTension:0,snappedCount:0,recorded:false
+};
+const SHIFT_CODE='LK-'+(1000+Math.floor(Math.random()*9000));
+ $('shiftcode').textContent='SHIFT '+SHIFT_CODE;
+(()=>{ // full casebook, shuffled — every fish in the lake carries a distinct message
+ const pick=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+ G.deck=pick(EMAILS);})();
+ 
+const odo=makeOdo($('odo'),6);
+let lastOdo=null;
+for(let i=0;i<SHIFT_LEN;i++){const s=document.createElement('span');s.className='seg';$('prog').appendChild(s);}
+ 
+function unlock(id){ if(G.badges.has(id))return;
+ G.badges.add(id);const b=BADGES.find(x=>x.id===id);
+ if(b){toastBadge(b);renderTray();}}
+function renderTray(){ $('badges').innerHTML=[...G.badges].map(id=>{
+ const b=BADGES.find(x=>x.id===id);
+ return '<span class="trayB" style="color:'+TIERC[b.tier]+';border-color:'+TIERC[b.tier]+'">'+glyphSVG(b.ic,13)+'</span>';}).join('');}
+ 
+const tweens=[];
+function tween(dur,fn,done){tweens.push({t:0,dur,fn,done});}
+function updateTweens(dt){for(let i=tweens.length-1;i>=0;i--){const tw=tweens[i];tw.t+=dt;
+ const k=Math.min(1,tw.t/tw.dur);tw.fn(k);
+ if(k>=1){tweens.splice(i,1);if(tw.done)tw.done();}}}
+ 
+const tipV=new THREE.Vector3();
+function rodTipWorld(){angler.updateMatrixWorld(true);return rodTip.getWorldPosition(tipV);}
+ 
+function startCharge(){G.state='charge';G.castPow=0;G.castT=0;
+ marker.visible=true;$('castbar').classList.add('on');
+ setPrompt('Steer with the mouse · release to cast');}
+function doCast(){
+ marker.visible=false;$('castbar').classList.remove('on');
+ const dist=5+G.castPow*21;
+ const yaw=G.aimYaw;
+ G.castTo.set(Math.sin(yaw)*dist,0,26.1-Math.cos(yaw)*dist);
+ G.castFrom.copy(rodTipWorld());
+ bobber.visible=true;bobber.position.copy(G.castFrom);
+ G.state='cast';SFX.whoosh();
+ tween(.16,k=>{rodG.rotation.x=lerp(-.15,-1.35,k);},()=>{
+  tween(.5,k=>{rodG.rotation.x=lerp(-1.35,-.85,k);});});
+ tween(.62,k=>{
+  bobber.position.lerpVectors(G.castFrom,G.castTo,k);
+  bobber.position.y+=(2.2+dist*.06)*4*k*(1-k)*.25;
+ },()=>{
+  G.bobberPos.copy(G.castTo);G.bobberDip=0;G.bobberDipV=0;
+  G.state='wait';G.waitT=0;G.rippleT=0;G.bobberActive=true;G.suitor=null;
+  SFX.plop();spawnRipple(G.castTo.x,G.castTo.z,1,.9,.5);
+  splashPool.burst(G.castTo.x,.05,G.castTo.z,8,.7);
+  setPrompt('Wait for the float to plunge · click to set the hook');
+ });
+}
+function startRetrieve(){
+ if(G.suitor)G.suitor.spook();
+ G.bobberActive=false;G.state='retrieve';SFX.whoosh();
+ const from=bobber.position.clone();
+ tween(.45,k=>{bobber.position.lerpVectors(from,rodTipWorld(),k);
+  bobber.position.y+=.8*Math.sin(k*Math.PI);},
+ ()=>{bobber.visible=false;G.state='aim';setPrompt('Hold to charge your cast');});
+}
+function onBite(fish){
+ G.state='bite';G.biteFish=fish;G.biteT=2.2;
+ G.bobberDipV=-4.2;SFX.bite();
+ spawnRipple(G.bobberPos.x,G.bobberPos.z,1.6,.9,.65);
+ splashPool.burst(G.bobberPos.x,.05,G.bobberPos.z,12,1);
+ setPrompt('SET THE HOOK — CLICK NOW!',true);
+}
+function hookset(f){
+ if(!f)return;
+ G.fish=f;G.state='hooked';G.bobberActive=false;G.biteFish=null;
+ if(G.suitor===f)G.suitor=null;
+ f.state='hooked';f.fightInit();
+ G.lineEntry.copy(G.bobberPos);
+ bobber.visible=false;G.reeling=true;
+ SFX.hookset();spawnRipple(G.bobberPos.x,G.bobberPos.z,1.2,.8,.5);
+ splashPool.burst(G.bobberPos.x,.05,G.bobberPos.z,8,.8);
+ $('tension').classList.add('on');
+ setPrompt('HOLD to reel · RELEASE when it runs!');
+}
+function snapLine(f){
+ if(!f)return;
+ SFX.snap();toast('LINE SNAPPED — release when it says SLACK!');
+ G.snappedCount++;
+ const hadEmail=f.email, key=f.key;
+ f.spook();f.state='flee';f.fleeT=2;f.heading=Math.atan2(f.group.position.z-ANCHOR.z,f.group.position.x-ANCHOR.x);
+ G.fish=null;G.suitor=null;$('tension').classList.remove('on');
+ line.visible=false;G.state='aim';
+ setPrompt('Hold to charge your cast');
+ $('vignette').classList.add('on');setTimeout(()=>$('vignette').classList.remove('on'),350);
+ if(hadEmail){
+  setTimeout(()=>spawnFishWithEmail(key,hadEmail),1600);}
+}
+function catchFish(f){
+ if(G.state==='landing'||!f||f.state==='caught')return;
+ f.caughtFlag=false;
+ G.state='landing';G.timeScaleTarget=.45;f.state='caught';
+ const p=f.group.position.clone();
+ SFX.splash(1.2);spawnRipple(p.x,p.z,2,1.2,.6);splashPool.burst(p.x,.1,p.z,22,1.3,1);
+ setPrompt('');
+ const apex=new THREE.Vector3(p.x*.75,2.6,p.z+(ANCHOR.z-p.z)*.15);
+ tween(.8,k=>{
+  f.group.position.set(lerp(p.x,apex.x,k),lerp(-.5,apex.y,k),lerp(p.z,apex.z,k));
+  f.group.rotation.z=k*2.4;if(f.tailG)f.tailG.rotation.y=Math.sin(k*40)*.6;
+  line.visible=true;updateLine(rodTipWorld(),f.group.position,.1,false);
+ },()=>{
+  sparklePool.burst(f.group.position.x,f.group.position.y,f.group.position.z,26,1,1);
+  SFX.chime();f.remove();fishes=fishes.filter(x=>x!==f);
+  line.visible=false;G.timeScaleTarget=1;G.fish=null;$('tension').classList.remove('on');
+  setTimeout(()=>finishCatch(f),180);
+ });
+}
+function finishCatch(f){
+ if(f.sp.rare)unlock('koi');
+ openCard(f);
+}
+ 
+function openCard(f){
+ G.state='inspect';G.currentEmail=f.email;G.currentFish=f;
+ unlock('first');
+ const e=f.email,sp=f.sp;
+ $('cSpecies').textContent=(sp.rare?'GOLDEN KOI · ':'')+sp.name;
+ $('cMeta').textContent=(f.weight?f.weight+' kg · ':'')+'message recovered · '+e.time;
+ $('cardClock').textContent=e.time;
+ $('cFromName').textContent=e.from;
+ const addrEl=$('cFromAddr');addrEl.textContent='<'+e.addr+'>';
+ addrEl.dataset.tip=e.replyTo?('Reply-To: '+e.replyTo+' — replies go elsewhere'):'Sending domain: '+e.addr.split('@')[1];
+ $('cTo').textContent=PLAYER_ADDR;
+ $('cSubj').textContent=e.subj;
+ $('cBody').innerHTML=e.body.map(t=>'<p>'+t+'</p>').join('');
+ $('cLinks').innerHTML=e.links.map(l=>'<p style="padding-top:2px"><span class="em-link" data-tip="Real destination: '+l.h+'">'+l.t+'</span></p>').join('');
+ $('cAtt').innerHTML=e.att?('<div class="chipAtt" data-tip="'+(e.attNote||'Attachment')+'">'+ICO.clip+e.att+'</div>'):'';
+ $('chips').innerHTML='';
+ $('notes').classList.remove('open');$('notesBody').innerHTML='';
+ $('stamp').className='stamp';$('stamp').textContent='';
+ $('cardFooter').classList.remove('on');
+ $('btnPhish').disabled=false;$('btnSafe').disabled=false;
+ $('cardwrap').classList.add('open');
+ G.cardShownAt=performance.now();
+ SFX.blip();
+}
+function decide(said){
+ const e=G.currentEmail;
+ const correct=(said==='phish')===e.p;
+ const secs=(performance.now()-G.cardShownAt)/1000;
+ const quick=secs<18;
+ let pts=0;const chips=[];
+ if(correct){
+  G.streak++;
+  const base=100*(G.currentFish.sp.rare?2:1);pts+=base;
+  chips.push(['+'+base+' CORRECT CALL','good']);
+  if(G.currentFish.sp.rare)chips.push(['GOLDEN KOI ×2','good']);
+  if(G.streak>1){const b=Math.min((G.streak-1)*25,150);pts+=b;chips.push(['+'+b+' STREAK ×'+G.streak,'good']);}
+  if(quick){pts+=20;chips.push(['+20 QUICK READ','good']);G.quickCount++;}
+  if(G.streak===3)unlock('streak3');
+  if(G.streak===5)unlock('streak5');
+  if(G.quickCount>=3)unlock('quick3');
+ }else{
+  G.streak=0;
+  pts=e.p?-100:-60;
+  chips.push([e.p?('−100 YOU TOOK THE BAIT'):('−60 FALSE REPORT'),'bad']);
+ }
+ G.score+=pts;
+ $('chips').innerHTML=chips.map((c,i)=>'<span class="chip '+c[1]+'" style="animation-delay:'+(i*.12)+'s">'+c[0]+'</span>').join('');
+ const st=$('stamp');st.textContent=e.p?'PHISH':'CLEAN';
+ st.classList.add('on');if(!e.p)st.classList.add('green');
+ setTimeout(()=>SFX.stamp(),140);
+ if(!correct){SFX.wrong();$('vignette').classList.add('on');setTimeout(()=>$('vignette').classList.remove('on'),600);}
+ $('notesHead').textContent=e.p?'FIELD NOTES · WHY IT IS A PHISH':'FIELD NOTES · WHY IT IS CLEAN';
+ const items=e.p?e.flags:e.safe;
+ const col=e.p?'var(--red)':'var(--green)';
+ $('notesBody').innerHTML=items.map(f=>'<div class="note'+(e.p?'':' safe')+'"><span style="color:'+col+'">'+(e.p?ICO.alert:ICO.check)+'</span><div><b>'+f[0]+'</b> '+f[1]+'</div></div>').join('');
+ setTimeout(()=>{$('notes').classList.add('open');},350);
+ G.inspected++;
+ G.results.push({e,said,correct,pts,secs});
+ const seg=$('prog').children[G.inspected-1];
+ if(seg){seg.className='seg '+(correct?(e.p?'hit':'safe'):'miss');
+  seg.dataset.tip=e.addr+' — '+(correct?'called correctly':'missed');}
+ $('readsCt').textContent=String(G.inspected).padStart(2,'0')+'/'+SHIFT_LEN;
+ if(G.streak>=3)toast('STREAK ×'+G.streak+' — the lake fears you.');
+ $('btnPhish').disabled=true;$('btnSafe').disabled=true;
+ $('cardFooter').classList.add('on');
+ $('btnNext').textContent=G.inspected>=SHIFT_LEN?'VIEW SHIFT REPORT':'CAST AGAIN';
+ setTimeout(()=>{spawnFish();},900);
+ if(G.streak>=2){$('streak').textContent='STREAK ×'+G.streak;$('streak').classList.add('on');}
+ else $('streak').classList.remove('on');
+}
+function closeCard(){
+ $('cardwrap').classList.remove('open');
+ if(G.inspected>=SHIFT_LEN){showEnd();return;}
+ G.state='aim';setPrompt('Hold to charge your cast');
+}
+function gradeFor(pts){
+ if(pts>=2000)return['GOLDEN HOOK','The lake trembles. Frame this one.'];
+ if(pts>=1600)return['LAKE WARDEN','A sharp eye with a decorated tackle box.'];
+ if(pts>=1200)return['MASTER ANGLER','The phish fear your shadow.'];
+ if(pts>=800)return['SEASONED DECKHAND','Solid hands — sharper hooks ahead.'];
+ if(pts>=400)return['APPRENTICE ANGLER','The bobber is starting to trust you.'];
+ return['FRESH BAIT','The phish are studying YOU. Cast again.'];
+}
+function computeEnd(){
+ const total=G.results.length||1;
+ const acc=Math.round(G.results.filter(r=>r.correct).length/total*100);
+ const g=gradeFor(G.score);
+ return{total,acc,
+  phishCaught:G.results.filter(r=>r.e.p&&r.correct).length,
+  missed:G.results.filter(r=>r.e.p&&!r.correct).length,
+  falsePos:G.results.filter(r=>!r.e.p&&!r.correct).length,
+  avgRead:(G.results.reduce((s,r)=>s+r.secs,0)/total).toFixed(1),
+  grade:g[0],tag:g[1]};
+}
+function showEnd(){
+ G.state='end';
+ if(G.results.length&&G.results.every(r=>r.correct))unlock('perfect');
+ if(G.results.some(r=>r.e.p)&&G.results.every(r=>!r.e.p||r.correct))unlock('hunter');
+ if(G.results.some(r=>!r.e.p)&&G.results.every(r=>r.e.p||r.correct))unlock('gate');
+ if(G.maxTension<.85&&G.snappedCount===0&&G.results.length)unlock('iron');
+ if(G.score>=1000)unlock('legend');
+ const R=computeEnd();
+ let lifetime=null,rank=null,newBest=false,best=0;
+ if(!G.recorded){
+  G.recorded=true;
+  if(CURRENT){
+   const db=loadDB(),u=db.users[CURRENT];
+   if(u){
+    best=u.best||0;newBest=G.score>best;
+    u.total=(u.total||0)+G.score;
+    u.best=Math.max(best,G.score);
+    u.games=(u.games||0)+1;
+    u.catches=(u.catches||0)+G.results.length;
+    u.phish=(u.phish||0)+R.phishCaught;
+    saveDB(db);
+    lifetime=u.total;best=u.best;
+    rank=Object.entries(db.users).map(([n,x])=>({n,t:x.total||0}))
+      .sort((a,b)=>b.t-a.t).findIndex(r=>r.n===CURRENT)+1;
+    toast('Recorded to your logbook · +'+G.score+' pts');
+   }
+  }else{
+   try{best=parseInt(localStorage.getItem('phishlake-best')||'0');}catch(e){}
+   newBest=G.score>best;
+   if(newBest){try{localStorage.setItem('phishlake-best',String(G.score));}catch(e){}best=G.score;}
+  }
+ }
+ $('endCode').textContent=SHIFT_CODE;
+ $('endGrade').textContent=R.grade;$('endTag').textContent=R.tag;
+ const mm=String(Math.floor(G.shiftTime/60)).padStart(2,'0'),ss=String(Math.floor(G.shiftTime%60)).padStart(2,'0');
+ const row=(l,v)=>'<div class="rrow"><span class="lbl">'+l+'</span><span class="dots"></span><span class="val">'+v+'</span></div>';
+ $('receipt').innerHTML=row('FINAL SCORE',G.score+(newBest?'  · NEW BEST':''))
+  +(lifetime!==null?row('LIFETIME POINTS',lifetime.toLocaleString()):'')
+  +(rank?row('LEADERBOARD RANK','#'+rank):'')
+  +row('ACCURACY',R.acc+'% ('+G.results.filter(r=>r.correct).length+'/'+R.total+')')
+  +row('PHISH REPORTED',R.phishCaught)
+  +row('BAIT TAKEN',R.missed)
+  +row('FALSE REPORTS',R.falsePos)
+  +row('AVG READ TIME',R.avgRead+'s')
+  +row('SHIFT TIME',mm+':'+ss)
+  +row(CURRENT?'LOGBOOK BEST':'PERSONAL BEST',best);
+ $('review').innerHTML=G.results.map(r=>{
+  const vc=r.e.p?'<span class="vc rvc-phish">PHISH</span>':'<span class="vc rvc-clean">CLEAN</span>';
+  const mark=r.correct?'<span class="ok">'+ICO.check+'</span>':'<span class="ko">'+ICO.x+'</span>';
+  return '<div class="rv">'+vc+mark+'<span class="who">'+r.e.addr+'</span><span class="tell">'+r.e.tell+'</span></div>';
+ }).join('');
+ const earned=[...G.badges].map(id=>BADGES.find(x=>x.id===id)).filter(Boolean);
+ $('endBadges').innerHTML=earned.length
+  ?earned.map(b=>'<div class="eb"><span class="medal '+b.tier+'">'+glyphSVG(b.ic,18)+'</span><div><b>'+b.name+'</b><span>'+b.desc+'</span></div></div>').join('')
+  :'<p class="fine">No badges this shift — the lake is unimpressed. Catch phish, catch streaks, catch the golden koi.</p>';
+ $('endwrap').classList.add('on');
+ SFX.chime();
+}
+ 
+function onPress(){
+ if(G.state==='aim')startCharge();
+ else if(G.state==='wait'){
+  const s=G.suitor;
+  if(s&&s.state==='nibble'&&s.nibbled){toast('Snagged it on the tick — sharp reflexes!');hookset(s);}
+  else startRetrieve();
+ }
+ else if(G.state==='bite')hookset(G.biteFish);
+ else if(G.state==='hooked')G.reeling=true;
+}
+function onRelease(){
+ if(G.state==='charge')doCast();
+ else if(G.state==='hooked')G.reeling=false;
+}
+let spaceHeld=false;
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0)onPress();});
+window.addEventListener('pointerup',e=>{if(e.button===0)onRelease();});
+window.addEventListener('pointermove',e=>{G.mx=(e.clientX/innerWidth)*2-1;});
+window.addEventListener('keydown',e=>{
+ if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
+ if(e.code==='Space'&&!spaceHeld){spaceHeld=true;e.preventDefault();onPress();}});
+window.addEventListener('keyup',e=>{
+ if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
+ if(e.code==='Space'){spaceHeld=false;onRelease();}});
+ 
+ $('btnPhish').innerHTML=ICO.shield+'REPORT PHISH';
+ $('btnSafe').innerHTML=ICO.mail+'OPEN SAFELY';
+ $('btnPhish').addEventListener('click',()=>decide('phish'));
+ $('btnSafe').addEventListener('click',()=>decide('safe'));
+ $('btnNext').addEventListener('click',closeCard);
+ $('againBtn').addEventListener('click',()=>location.reload());
+ $('certBtn').addEventListener('click',openCert);
+ $('guideBtn').addEventListener('click',()=>{$('board').classList.remove('on');$('guide').classList.toggle('on');});
+ $('guideClose').addEventListener('click',()=>$('guide').classList.remove('on'));
+ $('boardBtn').addEventListener('click',()=>{$('guide').classList.remove('on');renderBoard();$('board').classList.toggle('on');});
+ $('boardClose').addEventListener('click',()=>$('board').classList.remove('on'));
+ $('logoutBtn').addEventListener('click',()=>{try{localStorage.removeItem('phishlake-session');}catch(e){}location.reload();});
+let muted=false;
+ $('muteBtn').innerHTML=ICO.snd;
+ $('muteBtn').addEventListener('click',()=>{muted=!muted;SFX.setMuted(muted);
+ $('muteBtn').innerHTML=muted?ICO.mute:ICO.snd;});
+ $('muteBtn').addEventListener('pointerdown',e=>e.stopPropagation());
+ 
+ $('startBtn').addEventListener('click',()=>{
+ SFX.ensure();
+ $('title').classList.add('off');
+ $('hud').classList.add('on');
+ G.state='aim';G.started=true;
+ setPrompt('Hold to charge your cast');
+ toast('Shift '+SHIFT_CODE+' begins — '+fishes.length+' big fish, every one carrying a message.');
+});
+ 
+/* populate the lake: every fish big, every fish carrying mail */
+for(let i=0;i<LAKE_STOCK;i++)spawnFish();
+ $('stockCt').textContent=fishes.length+' FISH';
+ 
+/* ============================================================ certificate studio */
+const CW=1240,CH=880,PC={x:CW-208,y:254},PR=114;
+const FILTERS=[
+ {id:'none',label:'NONE',css:'none'},
+ {id:'ivory',label:'IVORY',css:'sepia(.4) saturate(1.15) contrast(1.02)'},
+ {id:'mono',label:'MONO',css:'grayscale(1) contrast(1.08)'},
+ {id:'warm',label:'WARM',css:'sepia(.25) saturate(1.3) brightness(1.05)'},
+ {id:'cool',label:'COOL',css:'saturate(1.05) hue-rotate(-10deg) contrast(1.06)'},
+ {id:'vivid',label:'VIVID',css:'saturate(1.65) contrast(1.12)'},
+ {id:'noir',label:'NOIR',css:'grayscale(1) contrast(1.35) brightness(.92)'}
+];
+function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();ctx.fill();}
+const STICKERS={
+ swag:{name:'Swag Shades',dy:-10,s:1.15,draw(ctx){
+  ctx.save();ctx.rotate(-.12);ctx.fillStyle='#15120e';
+  rrect(ctx,-48,-14,44,26,5);rrect(ctx,4,-14,44,26,5);
+  ctx.fillRect(-6,-8,12,6);ctx.fillRect(-58,-12,11,4);ctx.fillRect(47,-12,11,4);
+  ctx.strokeStyle='rgba(255,255,255,.45)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-38,-7);ctx.lineTo(-24,-7);ctx.moveTo(14,-7);ctx.lineTo(28,-7);ctx.stroke();
+  ctx.restore();}},
+ rounds:{name:'Round Shades',dy:-8,s:1.1,draw(ctx){
+  ctx.fillStyle='rgba(21,18,14,.9)';
+  ctx.beginPath();ctx.arc(-24,0,19,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(24,0,19,0,7);ctx.fill();
+  ctx.strokeStyle='#15120e';ctx.lineWidth=7;
+  ctx.beginPath();ctx.arc(-24,0,19,0,7);ctx.stroke();
+  ctx.beginPath();ctx.arc(24,0,19,0,7);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,10,16,Math.PI*1.15,Math.PI*1.85);ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.45)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(-24,0,12,Math.PI*.9,Math.PI*1.4);ctx.stroke();}},
+ stache:{name:'Mustache',dy:38,s:1,draw(ctx){
+  ctx.fillStyle='#241a12';
+  for(let m=0;m<2;m++){ctx.save();if(m)ctx.scale(-1,1);
+   ctx.beginPath();ctx.moveTo(0,2);
+   ctx.bezierCurveTo(-14,-10,-32,-8,-40,4);
+   ctx.bezierCurveTo(-48,16,-38,24,-28,20);
+   ctx.bezierCurveTo(-18,16,-8,10,0,10);
+   ctx.closePath();ctx.fill();ctx.restore();}}},
+ tophat:{name:'Top Hat',dy:-128,s:1.15,draw(ctx){
+  ctx.fillStyle='#1d1a24';
+  ctx.beginPath();ctx.ellipse(0,30,46,8,0,0,7);ctx.fill();
+  ctx.fillRect(-28,-34,56,64);
+  ctx.fillStyle='#b23a2b';ctx.fillRect(-28,10,56,11);}},
+ crown:{name:'Crown',dy:-92,s:1,draw(ctx){
+  ctx.fillStyle='#d9a441';ctx.strokeStyle='#8a6420';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-40,22);ctx.lineTo(-47,-18);ctx.lineTo(-20,-2);
+  ctx.lineTo(0,-30);ctx.lineTo(20,-2);ctx.lineTo(47,-18);ctx.lineTo(40,22);
+  ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#b23a2b';
+  [[-20,9],[0,9],[20,9]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],5,0,7);ctx.fill();});}},
+ party:{name:'Party Hat',dy:-124,s:1,draw(ctx){
+  ctx.save();ctx.rotate(.18);
+  ctx.beginPath();ctx.moveTo(0,-52);ctx.lineTo(27,34);ctx.lineTo(-27,34);ctx.closePath();
+  ctx.fillStyle='#c8842e';ctx.fill();
+  ctx.save();ctx.clip();
+  ctx.fillStyle='#b23a2b';
+  for(let i=-3;i<=3;i++){ctx.save();ctx.translate(0,i*15);ctx.rotate(-.55);
+   ctx.fillRect(-60,0,120,7);ctx.restore();}
+  ctx.restore();
+  ctx.beginPath();ctx.arc(0,-52,9,0,7);ctx.fillStyle='#f2e8d0';ctx.fill();
+  ctx.strokeStyle='#221b12';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();}},
+ halo:{name:'Halo',dy:-158,s:1.15,draw(ctx){
+  ctx.strokeStyle='#e6c35c';ctx.lineWidth=9;
+  ctx.beginPath();ctx.ellipse(0,0,42,13,0,0,7);ctx.stroke();
+  ctx.strokeStyle='rgba(255,244,200,.8)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.ellipse(0,-3,42,13,0,Math.PI,Math.PI*2);ctx.stroke();}}
+};
+const CERT={name:'',photo:null,filter:'none',zoom:1.15,ox:0,oy:0,stickers:[],sel:-1,drag:null};
+const certCanvas=$('certCanvas');
+const certNoise=(()=>{const c=document.createElement('canvas');c.width=c.height=160;
+ const x=c.getContext('2d');const id=x.createImageData(160,160);
+ for(let i=0;i<id.data.length;i+=4){const v=Math.random()*255|0;
+  id.data[i]=id.data[i+1]=id.data[i+2]=v;id.data[i+3]=13;}
+ x.putImageData(id,0,0);return c;})();
+function hash8(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+ return (h>>>0).toString(16).padStart(8,'0');}
+function drawMedalC(ctx,x,y,r,b){
+ ctx.save();ctx.translate(x,y);
+ ctx.fillStyle=TIERC[b.tier];
+ ctx.save();ctx.rotate(.35);ctx.fillRect(-r*.17,r*.25,r*.34,r*.85);ctx.restore();
+ ctx.save();ctx.rotate(-.35);ctx.fillRect(-r*.17,r*.25,r*.34,r*.85);ctx.restore();
+ ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fillStyle='#f6eedb';ctx.fill();
+ ctx.lineWidth=2.5;ctx.strokeStyle='#221b12';ctx.stroke();
+ ctx.beginPath();ctx.arc(0,0,r-4.5,0,7);ctx.lineWidth=1;ctx.stroke();
+ const g=GLYPHS[b.ic],p=new Path2D(g[0]),k=r*1.05/24;
+ ctx.save();ctx.scale(k,k);ctx.translate(-12,-12);
+ ctx.fillStyle='#221b12';ctx.fill(p,g[1]==='evenodd'?'evenodd':'nonzero');ctx.restore();
+ ctx.restore();
+}
+function drawMonogramA(ctx){
+ const P='#f2e8d0';
+ ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=P;
+ ctx.lineWidth=10;
+ ctx.beginPath();ctx.moveTo(-12,-26);
+ ctx.bezierCurveTo(-16,-8,-22,12,-27,30);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(-1,-27);
+ ctx.bezierCurveTo(5,-6,11,14,17,30);ctx.stroke();
+ ctx.lineWidth=6.5;
+ ctx.beginPath();ctx.moveTo(-46,17);
+ ctx.bezierCurveTo(-36,7,-22,4,-10,7);
+ ctx.bezierCurveTo(1,10,9,9,15,5);ctx.stroke();
+ ctx.lineWidth=6;
+ ctx.beginPath();ctx.moveTo(-14,-22);
+ ctx.bezierCurveTo(-7,-38,7,-38,11,-25);ctx.stroke();
+ ctx.lineWidth=5;
+ ctx.beginPath();ctx.moveTo(17,30);
+ ctx.bezierCurveTo(22,36,30,36,36,30);ctx.stroke();
+}
+function renderCert(ctx,forExport){
+ const INK='#221b12',INK2='#5a4d38',PAPER='#f2e8d0',RED='#b23a2b';
+ const ls=v=>{try{ctx.letterSpacing=v;}catch(e){}};
+ ctx.fillStyle=PAPER;ctx.fillRect(0,0,CW,CH);
+ ctx.fillStyle=ctx.createPattern(certNoise,'repeat');ctx.fillRect(0,0,CW,CH);
+ ctx.save();ctx.translate(CW/2-60,470);ctx.rotate(-.14);ctx.globalAlpha=.05;
+ ctx.scale(20,20);ctx.translate(-12,-12);ctx.fillStyle=INK;
+ ctx.fill(new Path2D(GLYPHS.fish[0]));ctx.restore();
+ ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.strokeRect(22,22,CW-44,CH-44);
+ ctx.lineWidth=1;ctx.strokeRect(34,34,CW-68,CH-68);
+ [[34,34],[CW-34,34],[34,CH-34],[CW-34,CH-34]].forEach(p=>{
+  ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(Math.PI/4);
+  ctx.fillStyle=INK;ctx.fillRect(-5,-5,10,10);ctx.restore();});
+ ls('3px');ctx.fillStyle=INK2;ctx.font='600 11px "IBM Plex Mono", monospace';
+ ctx.textAlign='left';ctx.fillText('DOC. PL-2025-'+SHIFT_CODE.slice(3),52,60);
+ ctx.textAlign='right';ctx.fillText('NORTH BASIN · FRESHWATER DIVISION',CW-52,60);
+ ctx.textAlign='center';
+ ls('8px');ctx.font='600 14px "IBM Plex Mono", monospace';ctx.fillStyle=INK2;
+ ctx.fillText('PHISH LAKE SECURITY DRILL · OFFICIAL COMMENDATION',CW/2,98);
+ ls('0px');
+ ctx.font='900 96px Fraunces, Georgia, serif';ctx.fillStyle=INK;
+ ctx.fillText('CERTIFICATE',CW/2,196);
+ ls('12px');ctx.font='600 26px Fraunces, Georgia, serif';
+ ctx.fillText('OF PHISH-AWARENESS',CW/2,240);ls('0px');
+ ctx.strokeStyle=INK;ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.moveTo(CW/2-260,270);ctx.lineTo(CW/2+260,270);ctx.stroke();
+ ctx.save();ctx.translate(CW/2,270);ctx.rotate(Math.PI/4);ctx.fillStyle=INK;ctx.fillRect(-5,-5,10,10);ctx.restore();
+ ctx.font='italic 600 24px Fraunces, Georgia, serif';ctx.fillStyle=INK2;
+ ctx.fillText('This is to certify that',CW/2,314);
+ const nm=(CERT.name||'').trim()||'THE NAMELESS ANGLER';
+ let fs=58;ctx.font='900 '+fs+'px Fraunces, Georgia, serif';
+ while(ctx.measureText(nm).width>680&&fs>26){fs-=2;ctx.font='900 '+fs+'px Fraunces, Georgia, serif';}
+ ctx.fillStyle=INK;ctx.fillText(nm,CW/2,392);
+ const nw=ctx.measureText(nm).width;
+ ctx.strokeStyle=INK;ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.moveTo(CW/2-nw/2-30,408);ctx.lineTo(CW/2+nw/2+30,408);ctx.stroke();
+ const R=computeEnd();
+ ctx.font='600 19px Fraunces, Georgia, serif';ctx.fillStyle='#2c2418';
+ ctx.fillText('for reading the waters of Phish Lake with a sharp eye — correctly classifying '+
+  R.acc+'% of recovered messages,',CW/2,448);
+ ctx.fillText('reporting '+R.phishCaught+' phishing attempts, resisting the bait on '+(SHIFT_LEN-R.missed-R.falsePos)+
+  ' occasions, and finishing with '+G.score+' points.',CW/2,476);
+ ctx.font='900 40px Fraunces, Georgia, serif';ctx.fillStyle=RED;
+ ctx.fillText('“'+R.grade+'”',CW/2,532);
+ ctx.save();ctx.translate(PC.x,PC.y);
+ ctx.beginPath();ctx.arc(0,0,PR,0,7);ctx.fillStyle='#e8dcbe';ctx.fill();
+ if(CERT.photo){
+  ctx.save();ctx.beginPath();ctx.arc(0,0,PR-2,0,7);ctx.clip();
+  const f=FILTERS.find(f=>f.id===CERT.filter);
+  if(f&&f.css!=='none'){try{ctx.filter=f.css;}catch(e){}}
+  const img=CERT.photo;
+  const base=Math.max(PR*2/img.width,PR*2/img.height)*CERT.zoom;
+  const w=img.width*base,h=img.height*base;
+  ctx.drawImage(img,-w/2+CERT.ox,-h/2+CERT.oy,w,h);
+  try{ctx.filter='none';}catch(e){}
+  ctx.restore();
+ }else{
+  ctx.setLineDash([7,7]);ctx.strokeStyle=INK2;ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(0,0,PR-16,0,7);ctx.stroke();ctx.setLineDash([]);
+  ctx.save();ctx.globalAlpha=.25;ctx.scale(5,5);ctx.translate(-12,-12);
+  ctx.fillStyle=INK2;ctx.fill(new Path2D(GLYPHS.fish[0]));ctx.restore();
+  ctx.fillStyle=INK2;ctx.font='600 11px "IBM Plex Mono", monospace';
+  ctx.fillText('ADD YOUR PHOTO',0,62);
+ }
+ ctx.lineWidth=3;ctx.strokeStyle=INK;ctx.beginPath();ctx.arc(0,0,PR,0,7);ctx.stroke();
+ ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,0,PR+6,0,7);ctx.stroke();
+ ctx.restore();
+ [[-PR*.62,-PR*.72,.5],[PR*.62,-PR*.72,-.5]].forEach(t=>{
+  ctx.save();ctx.translate(PC.x+t[0],PC.y+t[1]);ctx.rotate(t[2]);
+  ctx.fillStyle='rgba(226,210,166,.82)';ctx.fillRect(-34,-9,68,18);
+  ctx.strokeStyle='rgba(34,27,18,.25)';ctx.lineWidth=1;ctx.strokeRect(-34,-9,68,18);ctx.restore();});
+ CERT.stickers.forEach((st,i)=>{
+  const S=STICKERS[st.id];
+  ctx.save();ctx.translate(st.x,st.y);ctx.scale(st.s,st.s);S.draw(ctx);ctx.restore();
+  if(!forExport&&i===CERT.sel){
+   ctx.save();ctx.setLineDash([6,6]);ctx.strokeStyle=RED;ctx.lineWidth=2;
+   ctx.beginPath();ctx.arc(st.x,st.y,62*st.s,0,7);ctx.stroke();ctx.restore();}
+ });
+ const earned=[...G.badges].map(id=>BADGES.find(x=>x.id===id)).filter(Boolean);
+ const list=earned.length?earned:[{name:'Participant',ic:'fish',tier:'bronze'}];
+ const bx0=120,by=612,spacing=Math.min(88,560/Math.max(list.length,1));
+ list.forEach((b,i)=>{
+  const x=bx0+36+i*spacing,y=by;
+  drawMedalC(ctx,x,y,25,b);
+  ctx.fillStyle=INK2;ctx.font='600 9.5px "IBM Plex Mono", monospace';
+  ctx.fillText(b.name.toUpperCase(),x,y+48);});
+ ls('2px');ctx.textAlign='left';ctx.fillStyle=INK2;
+ ctx.font='600 12.5px "IBM Plex Mono", monospace';
+ const dateStr=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+ ctx.fillText('SHIFT '+SHIFT_CODE+' · ACCURACY '+R.acc+'% · PHISH REPORTED '+R.phishCaught+' · BAIT TAKEN '+R.missed,120,700);
+ ctx.fillText('DATE '+dateStr.toUpperCase()+' · LAKE: NORTH BASIN · VERDICTS '+R.total,120,722);
+ ls('0px');
+ ctx.textAlign='center';
+ ctx.font='italic 600 34px Fraunces, Georgia, serif';ctx.fillStyle=INK;
+ ctx.fillText('Aaliyan',795,638);
+ ctx.strokeStyle=INK;ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(705,650);ctx.lineTo(885,650);ctx.stroke();
+ ctx.fillStyle=INK2;ctx.font='600 9.5px "IBM Plex Mono", monospace';
+ ls('2px');ctx.fillText('CHIEF OF FRESHWATER SECURITY',795,668);ls('0px');
+ const SX=CW-180,SY=652;
+ ctx.save();ctx.translate(SX,SY);
+ [[.4,'#8f2d20'],[-.4,'#8f2d20']].forEach(r=>{ctx.save();ctx.rotate(r[0]);
+  ctx.fillStyle=r[1];ctx.beginPath();
+  ctx.moveTo(-13,28);ctx.lineTo(13,28);ctx.lineTo(13,96);ctx.lineTo(0,80);ctx.lineTo(-13,96);
+  ctx.closePath();ctx.fill();ctx.restore();});
+ ctx.beginPath();ctx.arc(0,0,62,0,7);ctx.fillStyle=RED;ctx.fill();
+ ctx.beginPath();ctx.arc(0,0,62,0,7);ctx.strokeStyle='#8f2d20';ctx.lineWidth=4;ctx.stroke();
+ ctx.beginPath();ctx.arc(0,0,50,0,7);ctx.strokeStyle='rgba(242,232,208,.75)';ctx.lineWidth=2;ctx.stroke();
+ ctx.save();ctx.scale(.82,.82);drawMonogramA(ctx);ctx.restore();
+ ctx.restore();
+ const seed=hash8(SHIFT_CODE+nm+G.score);
+ let bx=CW/2-120;
+ ctx.fillStyle=INK;
+ for(let i=0;i<56;i++){const bit=parseInt(seed[i%seed.length],16)^(i*7%13);
+  if(bit%3){ctx.fillRect(bx,782,(bit%3),24);}bx+=4;}
+ ctx.font='600 10px "IBM Plex Mono", monospace';ctx.fillStyle=INK2;
+ ctx.fillText('VERIFY: PHISHLAKE/'+SHIFT_CODE+'-'+seed.toUpperCase(),CW/2,826);
+ ctx.textAlign='left';
+}
+function renderCertView(){
+ const q=Math.min(2,window.devicePixelRatio||1);
+ if(certCanvas.width!==CW*q){certCanvas.width=CW*q;certCanvas.height=CH*q;}
+ const x=certCanvas.getContext('2d');
+ x.setTransform(q,0,0,q,0,0);
+ renderCert(x,false);
+}
+let camStream=null;
+function setPhoto(c){CERT.photo=c;CERT.zoom=1.15;CERT.ox=0;CERT.oy=0;
+ $('photoZoom').value=1.15;renderCertView();}
+async function startCam(){stopCam();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+  toast('Camera not available in this browser — upload a photo instead.');return;}
+ try{
+  camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}});
+  $('camVideo').srcObject=camStream;
+  $('camBox').classList.remove('hidden');
+ }catch(err){toast('Camera blocked ('+(err.name||'error')+') — upload a photo instead.');}}
+function stopCam(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+ $('camBox').classList.add('hidden');}
+function snapCam(){const v=$('camVideo');
+ if(!camStream||!v.videoWidth){toast('Camera is still warming up — try again in a second.');return;}
+ const s=Math.min(1,900/Math.max(v.videoWidth,v.videoHeight));
+ const c=document.createElement('canvas');
+ c.width=Math.round(v.videoWidth*s);c.height=Math.round(v.videoHeight*s);
+ const x=c.getContext('2d');
+ x.translate(c.width,0);x.scale(-1,1);
+ x.drawImage(v,0,0,c.width,c.height);
+ setPhoto(c);stopCam();toast('Photo captured — drag on the portrait to frame it.');}
+function buildCertUI(){
+ FILTERS.forEach(f=>{const b=document.createElement('button');b.className='fchip'+(f.id==='none'?' on':'');
+  b.textContent=f.label;
+  b.addEventListener('click',()=>{CERT.filter=f.id;
+   document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));
+   b.classList.add('on');renderCertView();});
+  $('filterRow').appendChild(b);});
+ Object.entries(STICKERS).forEach(([id,S])=>{
+  const b=document.createElement('button');b.className='sbtn';b.title=S.name;
+  const c=document.createElement('canvas');c.width=c.height=44;
+  const x=c.getContext('2d');x.translate(22,22);x.scale(.34,.34);S.draw(x);
+  b.appendChild(c);
+  b.addEventListener('click',()=>{
+   CERT.stickers.push({id,x:PC.x,y:PC.y+S.dy,s:S.s});
+   CERT.sel=CERT.stickers.length-1;updateStCtl();renderCertView();});
+  $('stickerRow').appendChild(b);});
+ const cp=e=>{const r=certCanvas.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*(CW/r.width),y:(e.clientY-r.top)*(CH/r.height)};};
+ certCanvas.addEventListener('pointerdown',e=>{
+  const p=cp(e);certCanvas.setPointerCapture(e.pointerId);
+  for(let i=CERT.stickers.length-1;i>=0;i--){const st=CERT.stickers[i];
+   if(Math.hypot(p.x-st.x,p.y-st.y)<62*st.s){
+    CERT.sel=i;CERT.drag={type:'st',i,sx:p.x,sy:p.y,ox:st.x,oy:st.y};
+    updateStCtl();renderCertView();return;}}
+  if(CERT.photo&&Math.hypot(p.x-PC.x,p.y-PC.y)<PR+40){
+   CERT.drag={type:'ph',sx:p.x,sy:p.y,ox:CERT.ox,oy:CERT.oy};}
+  else{CERT.sel=-1;updateStCtl();}
+  renderCertView();});
+ certCanvas.addEventListener('pointermove',e=>{
+  if(!CERT.drag)return;const p=cp(e),d=CERT.drag;
+  if(d.type==='st'){const st=CERT.stickers[d.i];
+   if(st){st.x=clamp(d.ox+p.x-d.sx,PC.x-220,PC.x+220);
+    st.y=clamp(d.oy+p.y-d.sy,PC.y-260,PC.y+220);}}
+  else{CERT.ox=clamp(d.ox+p.x-d.sx,-PR*2.2,PR*2.2);
+   CERT.oy=clamp(d.oy+p.y-d.sy,-PR*2.2,PR*2.2);}
+  renderCertView();});
+ certCanvas.addEventListener('pointerup',()=>{CERT.drag=null;});
+ certCanvas.addEventListener('wheel',e=>{
+  const r=certCanvas.getBoundingClientRect();
+  const p={x:(e.clientX-r.left)*(CW/r.width),y:(e.clientY-r.top)*(CH/r.height)};
+  if(Math.hypot(p.x-PC.x,p.y-PC.y)<PR+80&&CERT.photo){
+   e.preventDefault();
+   CERT.zoom=clamp(CERT.zoom*(e.deltaY>0?.93:1.07),.6,2.6);
+   $('photoZoom').value=CERT.zoom;renderCertView();}},{passive:false});
+ $('certName').addEventListener('input',e=>{CERT.name=e.target.value;renderCertView();});
+ $('camBtn').addEventListener('click',startCam);
+ $('camCancel').addEventListener('click',stopCam);
+ $('snapBtn').addEventListener('click',snapCam);
+ $('upBtn').addEventListener('click',()=>$('upInput').click());
+ $('upInput').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const url=URL.createObjectURL(f);const img=new Image();
+  img.onload=()=>{const s=Math.min(1,900/Math.max(img.width,img.height));
+   const c=document.createElement('canvas');
+   c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+   URL.revokeObjectURL(url);setPhoto(c);toast('Photo loaded — drag on the portrait to frame it.');};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast('That file could not be read as an image.');};
+  img.src=url;e.target.value='';});
+ $('photoZoom').addEventListener('input',e=>{CERT.zoom=+e.target.value;renderCertView();});
+ $('stSize').addEventListener('input',e=>{
+  if(CERT.sel>=0&&CERT.stickers[CERT.sel]){
+   CERT.stickers[CERT.sel].s=+e.target.value;renderCertView();}});
+ $('stDel').addEventListener('click',()=>{
+  if(CERT.sel>=0){CERT.stickers.splice(CERT.sel,1);CERT.sel=-1;updateStCtl();renderCertView();}});
+ $('certBack').addEventListener('click',()=>{$('certwrap').classList.remove('on');$('endwrap').classList.add('on');});
+ $('dlBtn').addEventListener('click',()=>{
+  const S=2,c=document.createElement('canvas');
+  c.width=CW*S;c.height=CH*S;
+  const x=c.getContext('2d');x.scale(S,S);renderCert(x,true);
+  c.toBlob(b=>{if(!b){toast('Export failed — try again.');return;}
+   const a=document.createElement('a');a.href=URL.createObjectURL(b);
+   a.download='phish-lake-certificate.png';a.click();
+   setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+   toast('Certificate downloaded — frame it, ranger.');},'image/png');});
+}
+function updateStCtl(){
+ const on=CERT.sel>=0&&CERT.stickers[CERT.sel];
+ $('stickerCtl').classList.toggle('hidden',!on);
+ if(on)$('stSize').value=CERT.stickers[CERT.sel].s;}
+let certBuilt=false;
+function openCert(){
+ $('endwrap').classList.remove('on');
+ $('certwrap').classList.add('on');
+ if(!certBuilt){buildCertUI();certBuilt=true;}
+ renderCertView();
+ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderCertView);
+}
+ 
+/* ============================================================ angler registry — real auth, 3D sea, leaderboard */
+function sha256(str){
+ const bytes=Array.from(new TextEncoder().encode(str));
+ const bitLen=bytes.length*8;
+ bytes.push(0x80);
+ while(bytes.length%64!==56)bytes.push(0);
+ const words=[];
+ for(let i=0;i<bytes.length;i++){
+  const sh=(3-(i&3))*8;
+  words[i>>2]=(words[i>>2]||0)|(bytes[i]<<sh);
+ }
+ words[words.length]=Math.floor(bitLen/4294967296);
+ words[words.length]=bitLen>>>0;
+ function rr(v,a){return (v>>>a)|(v<<(32-a));}
+ const maxWord=4294967296;
+ let H=[],K=[],comp={};
+ for(let cand=2;K.length<64;cand++){
+  if(comp[cand]===undefined){
+   for(let m=cand;m<400;m+=cand)comp[m]=1;
+   if(H.length<8)H.push(Math.pow(cand,.5)*maxWord|0);
+   K.push(Math.pow(cand,1/3)*maxWord|0);
+  }
+ }
+ for(let j=0;j<words.length;){
+  const w=words.slice(j,j+=16);
+  const oldH=H;
+  H=H.slice(0,8);
+  for(let i=0;i<64;i++){
+   const w15=w[i-15],w2=w[i-2];
+   const a=H[0],e=H[4];
+   let t1=H[7]
+    +(rr(e,6)^rr(e,11)^rr(e,25))
+    +((e&H[5])^((~e)&H[6]))
+    +K[i]
+    +(w[i]=(i<16)?w[i]:(
+      w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10))
+    )|0);
+   const t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&H[1])^(a&H[2])^(H[1]&H[2]));
+   H=[(t1+t2)|0].concat(H);
+   H[4]=(H[4]+t1)|0;
+  }
+  for(let i=0;i<8;i++)H[i]=(H[i]+oldH[i])|0;
+ }
+ let out='';
+ for(let i=0;i<8;i++)for(let j=3;j+1;j--){
+  const b=(H[i]>>(j*8))&255;
+  out+=((b<16)?0:'')+b.toString(16);
+ }
+ return out;
+}
+const SHA_OK=sha256('abc')==='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+function digest(s){
+ if(SHA_OK)return sha256(s);
+ let h1=0x811c9dc5,h2=0xc2b2ae35;
+ for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);
+  h1=Math.imul(h1^c,16777619);h2=Math.imul(h2^c,0x01000193);}
+ return ('0000000'+(h1>>>0).toString(16)).slice(-8)+('0000000'+(h2>>>0).toString(16)).slice(-8);
+}
+function pwHash(pass,salt){
+ let h=digest(salt+'::'+pass);
+ for(let i=0;i<400;i++)h=digest(h+salt+i);
+ return h;
+}
+function makeSalt(){
+ try{const a=new Uint8Array(16);crypto.getRandomValues(a);
+  return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');}
+ catch(e){let s='';for(let i=0;i<32;i++)s+='0123456789abcdef'[Math.random()*16|0];return s;}
+}
+const DBKEY='phishlake-registry';
+function loadDB(){try{const d=JSON.parse(localStorage.getItem(DBKEY));if(d&&d.users)return d;}catch(e){}return{users:{}};}
+function saveDB(db){try{localStorage.setItem(DBKEY,JSON.stringify(db));}catch(e){}}
+function setSession(n){try{localStorage.setItem('phishlake-session',n);}catch(e){}}
+function nameFromEmail(em){
+ const local=em.split('@')[0]||'';
+ const words=local.split(/[._\-+]+/).filter(Boolean);
+ let n=words.map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+ if(!n)n='Angler';
+ return n.slice(0,20);
+}
+ 
+let CURRENT=null,authMode='login',showPw=false;
+const EMAIL_RE=/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
+ 
+/* ---------- the 3D sea ---------- */
+const SEA={on:false,mode:'roam',t:0,spoutT:5};
+const seaBox={x:12,y:4.6,z:3.2};
+let seaRenderer=null,seaScene=null,seaCam=null;
+const seaCreatures=[],seaWeeds=[],seaRayMats=[];
+const seaVents=[[-5,-2.2],[0.5,2.4],[6,-1.2]];
+const seaBub={n:90,a:[],pAttr:null,alphaAttr:null,mat:null};
+ 
+function seaSpawnBubble(x,y,z){
+ for(let i=0;i<seaBub.n;i++){const b=seaBub.a[i];
+  if(!b.on){b.on=true;b.vy=rnd(.7,1.5);
+   seaBub.pAttr.setXYZ(i,x,y,z);return;}}
+}
+function updateSeaBubbles(dt,t){
+ seaBub.mat.uniforms.uTime.value=t;
+ for(let i=0;i<seaBub.n;i++){const b=seaBub.a[i];
+  if(!b.on){if(seaBub.alphaAttr.getX(i)!==0)seaBub.alphaAttr.setX(i,0);continue;}
+  const y=seaBub.pAttr.getY(i)+b.vy*dt;
+  if(y>seaBox.y+1.4){b.on=false;seaBub.pAttr.setY(i,-999);seaBub.alphaAttr.setX(i,0);continue;}
+  seaBub.pAttr.setY(i,y);
+  seaBub.alphaAttr.setX(i,clamp((seaBox.y+1.4-y)/1.6,0,1)*.9);
+ }
+ seaBub.pAttr.needsUpdate=true;seaBub.alphaAttr.needsUpdate=true;
+}
+function buildSharkMesh(){
+ const g=new THREE.Group();let tailG=null;
+ const L=3.4,pts=[];
+ for(let i=0;i<=10;i++){const t=i/10;
+  let r=Math.sin(Math.PI*Math.pow(t,.78))*.40+.02; if(t>.88)r=.05;
+  pts.push(new THREE.Vector2(Math.max(r,.02)*L*.5,t*L));}
+ const bg=new THREE.LatheGeometry(pts,10);
+ bg.rotateZ(-Math.PI/2);bg.translate(-L/2,0,0);bg.scale(1,.85,1);
+ const top=new THREE.Color(0x7e97a6),belly=new THREE.Color(0xd3dee3);
+ const pos=bg.attributes.position,col=new Float32Array(pos.count*3),tc=new THREE.Color();
+ for(let i=0;i<pos.count;i++){const ny=pos.getY(i)/(L*.28);
+  const f=THREE.MathUtils.smoothstep(ny,-.5,.45);
+  tc.copy(belly).lerp(top,f);col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b;}
+ bg.setAttribute('color',new THREE.BufferAttribute(col,3));
+ g.add(new THREE.Mesh(bg,new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.7})));
+ const finM=new THREE.MeshStandardMaterial({color:0x6d8493,roughness:.7,flatShading:true,side:THREE.DoubleSide});
+ tailG=new THREE.Group();tailG.position.x=-L/2+.05;g.add(tailG);
+ const tail=new THREE.Mesh(new THREE.ConeGeometry(.5,.85,4),finM);
+ tail.scale.z=.14;tail.rotation.z=-Math.PI/2;tail.position.x=-.38;tailG.add(tail);
+ const dors=new THREE.Mesh(new THREE.ConeGeometry(.3,.55,4),finM);
+ dors.scale.z=.16;dors.position.set(-.1,.5,0);g.add(dors);
+ [-1,1].forEach(s=>{const p=new THREE.Mesh(new THREE.ConeGeometry(.22,.5,4),finM);
+  p.scale.z=.14;p.rotation.z=-Math.PI/2+.5;p.rotation.y=s*.9;p.position.set(.35,-.18,s*.34);g.add(p);});
+ const eyeM=new THREE.MeshStandardMaterial({color:0x10161c,roughness:.4});
+ [[.36*L,.08,.14],[.36*L,.08,-.14]].forEach(p=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.05,6,5),eyeM);e.position.set(...p);g.add(e);});
+ return {group:g,tailG};
+}
+function buildWhaleMesh(){
+ const g=new THREE.Group();let tailG=null;
+ const L=5,pts=[];
+ for(let i=0;i<=10;i++){const t=i/10;
+  let r=Math.sin(Math.PI*Math.pow(t,.7))*.55+.03; if(t>.9)r=.08;
+  pts.push(new THREE.Vector2(Math.max(r,.03)*L*.5,t*L));}
+ const bg=new THREE.LatheGeometry(pts,12);
+ bg.rotateZ(-Math.PI/2);bg.translate(-L/2,0,0);bg.scale(1,.95,.85);
+ const top=new THREE.Color(0x4e6a84),belly=new THREE.Color(0xd6e2e6);
+ const pos=bg.attributes.position,col=new Float32Array(pos.count*3),tc=new THREE.Color();
+ for(let i=0;i<pos.count;i++){const ny=pos.getY(i)/(L*.4);
+  const f=THREE.MathUtils.smoothstep(ny,-.5,.45);
+  tc.copy(belly).lerp(top,f);col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b;}
+ bg.setAttribute('color',new THREE.BufferAttribute(col,3));
+ g.add(new THREE.Mesh(bg,new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.8})));
+ const finM=new THREE.MeshStandardMaterial({color:0x415a72,roughness:.8,flatShading:true,side:THREE.DoubleSide});
+ tailG=new THREE.Group();tailG.position.x=-L/2+.12;g.add(tailG);
+ [-1,1].forEach(s=>{const wrap=new THREE.Group();wrap.rotation.y=s*.95;
+  const f=new THREE.Mesh(new THREE.ConeGeometry(.38,1.05,4),finM);
+  f.scale.set(.15,1,1);f.rotation.z=Math.PI/2;f.position.x=-.5;
+  wrap.add(f);tailG.add(wrap);});
+ const dors=new THREE.Mesh(new THREE.ConeGeometry(.18,.4,4),finM);
+ dors.scale.z=.15;dors.position.set(-.4,.85,0);g.add(dors);
+ const eyeM=new THREE.MeshStandardMaterial({color:0x0e1a24,roughness:.4});
+ [[.34*L,.05,.3],[.34*L,.05,-.3]].forEach(p=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.07,6,5),eyeM);e.position.set(...p);g.add(e);});
+ return {group:g,tailG};
+}
+class SeaCreature{
+ constructor(kind,mesh,tailG){
+  this.kind=kind;this.g=mesh;this.tail=tailG;
+  this.pos=new THREE.Vector3(rnd(-8,8),rnd(-2.5,2.5),rnd(-2,2));
+  this.heading=rnd(0,6.28);
+  this.base=kind==='whale'?.7:kind==='shark'?1.0:rnd(1.0,1.4);
+  this.phase=rnd(0,9);this.rt=0;this.wag=5;
+  this.target=new THREE.Vector3();this.pickRoam();
+ }
+ pickRoam(){this.target.set(rnd(-seaBox.x+1.5,seaBox.x-1.5),rnd(-seaBox.y+1,seaBox.y-1),rnd(-seaBox.z,seaBox.z));}
+ update(dt,t,mode,idx){
+  if(mode==='roam'){
+   this.rt-=dt;
+   if(this.rt<=0||this.pos.distanceTo(this.target)<1.2){this.rt=rnd(2.5,5.5);this.pickRoam();}
+   this.wag=lerp(this.wag,5,Math.min(1,dt*3));
+  }else if(mode==='peek'){
+   const ty=(((idx*.23)%1)-.5)*2*(seaBox.y-1.2);
+   const tz=(((idx*.41)%1)-.5)*2*(seaBox.z-.6);
+   this.target.set(-seaBox.x+.4+(idx%3)*.7,ty,tz);
+   this.wag=lerp(this.wag,8,Math.min(1,dt*3));
+  }else{
+   this.target.set(seaBox.x+2.2+(idx%4)*1.3,
+    (((idx*.31)%1)-.5)*2*(seaBox.y-1),(((idx*.17)%1)-.5)*2*seaBox.z);
+   this.wag=lerp(this.wag,16,Math.min(1,dt*4));
+  }
+  const dx=this.target.x-this.pos.x,dz=this.target.z-this.pos.z;
+  const dist=Math.hypot(dx,dz);
+  let want=Math.atan2(dz,dx);
+  if(mode==='peek'&&dist<1.4)want=Math.PI;
+  if(mode==='privacy')want=0;
+  this.heading=lerpAngle(this.heading,want,Math.min(1,dt*(mode==='privacy'?5:2.2)));
+  const sp=this.base*(mode==='privacy'?3.6:mode==='peek'?2.0:1)*Math.min(1,dist*.9+.15);
+  this.pos.x+=Math.cos(this.heading)*sp*dt;
+  this.pos.z+=Math.sin(this.heading)*sp*dt;
+  const ty=this.target.y+Math.sin(t*1.3+this.phase)*(mode==='peek'?.15:.4);
+  this.pos.y+=(ty-this.pos.y)*Math.min(1,dt*1.2);
+  this.pos.y=clamp(this.pos.y,-seaBox.y+.8,seaBox.y-.6);
+  this.pos.z=clamp(this.pos.z,-seaBox.z,seaBox.z);
+  if(mode!=='privacy')this.pos.x=clamp(this.pos.x,-seaBox.x+.3,seaBox.x-.3);
+  else this.pos.x=Math.min(this.pos.x,seaBox.x+1.5);
+  this.g.position.copy(this.pos);
+  this.g.rotation.y=-this.heading;
+  if(this.tail){
+   if(this.kind==='whale')this.tail.rotation.x=Math.sin(t*this.wag*.6+this.phase)*.35;
+   else this.tail.rotation.y=Math.sin(t*this.wag+this.phase)*.5;
+  }
+  if(Math.random()<dt*(mode==='peek'?1.1:.25)){
+   const hx=this.pos.x+Math.cos(this.heading)*1.2*this.g.scale.x;
+   const hz=this.pos.z+Math.sin(this.heading)*1.2*this.g.scale.x;
+   seaSpawnBubble(hx,this.pos.y+.25,hz);
+  }
+ }
+}
+function initSea3D(){
+ seaRenderer=new THREE.WebGLRenderer({canvas:$('seaCanvas'),antialias:true});
+ seaRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ seaScene=new THREE.Scene();
+ seaScene.background=new THREE.Color(0x0a3247);
+ seaScene.fog=new THREE.Fog(0x0a3247,14,40);
+ seaCam=new THREE.PerspectiveCamera(50,1,.1,100);
+ seaScene.add(new THREE.HemisphereLight(0x9fd8e8,0x0a2030,.95));
+ const dl=new THREE.DirectionalLight(0xcfeef5,1.15);dl.position.set(3,10,6);seaScene.add(dl);
+ const sg=new THREE.PlaneGeometry(46,26,42,26);sg.rotateX(-Math.PI/2);
+ const sp=sg.attributes.position,scol=[];
+ const sandC=new THREE.Color(0xc9a873),tmp=new THREE.Color();
+ for(let i=0;i<sp.count;i++){
+  const x=sp.getX(i),z=sp.getZ(i);
+  sp.setY(i,-seaBox.y-.2+Math.sin(x*.7)*.18+Math.sin(z*.9+x*.3)*.14+Math.sin(x*3.1)*Math.sin(z*2.7)*.08);
+  tmp.copy(sandC).offsetHSL(0,0,(Math.random()-.5)*.06);
+  scol.push(tmp.r,tmp.g,tmp.b);
+ }
+ sg.setAttribute('color',new THREE.Float32BufferAttribute(scol,3));
+ sg.computeVertexNormals();
+ seaScene.add(new THREE.Mesh(sg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1})));
+ const sf=new THREE.Group();
+ const armM=new THREE.MeshStandardMaterial({color:0xc9674a,roughness:1,flatShading:true});
+ for(let i=0;i<5;i++){
+  const arm=new THREE.Mesh(new THREE.ConeGeometry(.16,.6,6),armM);
+  arm.position.y=.3;arm.rotation.z=Math.PI/2;
+  const hold=new THREE.Group();hold.rotation.y=i/5*Math.PI*2;hold.add(arm);sf.add(hold);
+ }
+ sf.position.set(5,-seaBox.y+.05,2);sf.rotation.z=.15;seaScene.add(sf);
+ const shell=new THREE.Mesh(new THREE.SphereGeometry(.35,10,6,0,Math.PI*2,0,Math.PI/2),
+  new THREE.MeshStandardMaterial({color:0xe6d7b8,roughness:.9,flatShading:true}));
+ shell.position.set(-6,-seaBox.y+.02,1.5);seaScene.add(shell);
+ [[-8,-1.5],[-3,2.6],[2,-2.2],[7.5,1.2]].forEach(v=>{
+  const g=new THREE.Group();g.position.set(v[0],-seaBox.y-.1,v[1]);
+  const h=2.2+rnd(0,1.2);
+  let parent=g;const segs=[];
+  for(let i=0;i<4;i++){
+   const sh=h/4,pivot=new THREE.Group();
+   const m=new THREE.Mesh(new THREE.CylinderGeometry(.02+(3-i)*.016,.03+(3-i)*.018,sh,5),
+    new THREE.MeshStandardMaterial({color:i===1?0x3f8a58:0x35734a,roughness:1}));
+   m.position.y=sh/2;pivot.add(m);
+   pivot.position.y=i===0?0:sh;
+   parent.add(pivot);parent=pivot;segs.push(pivot);
+  }
+  g.userData.segs=segs;g.userData.ph=rnd(0,9);
+  seaWeeds.push(g);seaScene.add(g);
+ });
+ for(let i=0;i<4;i++){
+  const mat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+   uniforms:{uTime:{value:0}},
+   vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+   fragmentShader:`uniform float uTime;varying vec2 vUv;
+   void main(){
+    float a=pow(vUv.y,1.4)*0.16;
+    a*=smoothstep(0.0,0.25,vUv.x)*smoothstep(1.0,0.75,vUv.x);
+    a*=0.75+0.25*sin(uTime*0.7+vUv.x*9.0);
+    gl_FragColor=vec4(0.75,0.9,0.85,a);
+   }`});
+  const ray=new THREE.Mesh(new THREE.PlaneGeometry(3.5,18),mat);
+  ray.position.set(-9+i*6,4,-2);
+  ray.rotation.z=-.22+Math.sin(i*2.1)*.1;
+  seaRayMats.push(mat);seaScene.add(ray);
+ }
+ const n=seaBub.n;
+ const pos=new Float32Array(n*3),al=new Float32Array(n),ph=new Float32Array(n),sz=new Float32Array(n);
+ seaBub.a=Array.from({length:n},()=>({on:false,vy:0}));
+ for(let i=0;i<n;i++){pos[i*3+1]=-999;ph[i]=rnd(0,9);sz[i]=rnd(.35,.8);}
+ const geo=new THREE.BufferGeometry();
+ geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ geo.setAttribute('aAlpha',new THREE.BufferAttribute(al,1));
+ geo.setAttribute('aPhase',new THREE.BufferAttribute(ph,1));
+ geo.setAttribute('aSize',new THREE.BufferAttribute(sz,1));
+ const bmat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
+  uniforms:{uTime:{value:0}},
+  vertexShader:`uniform float uTime;attribute float aAlpha;attribute float aPhase;attribute float aSize;varying float vA;
+  void main(){vA=aAlpha;vec3 p=position;
+   p.x+=sin(uTime*1.5+aPhase)*0.3;p.z+=cos(uTime*1.2+aPhase*1.7)*0.22;
+   vec4 mv=modelViewMatrix*vec4(p,1.0);
+   gl_PointSize=aSize*(300.0/max(1.0,-mv.z));gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`varying float vA;
+  void main(){float d=length(gl_PointCoord-0.5);
+   float rim=smoothstep(0.5,0.40,d)*smoothstep(0.30,0.42,d);
+   float hl=smoothstep(0.18,0.0,length(gl_PointCoord-vec2(0.36,0.36)));
+   float a=(rim*0.55+hl*0.75+smoothstep(0.5,0.44,d)*0.10)*vA;
+   if(a<0.01)discard;
+   gl_FragColor=vec4(0.82,0.93,0.96,a);}`});
+ seaBub.pAttr=geo.attributes.position;
+ seaBub.alphaAttr=geo.attributes.aAlpha;
+ seaBub.mat=bmat;
+ const pts=new THREE.Points(geo,bmat);pts.frustumCulled=false;seaScene.add(pts);
+ /* the school — big species only now */
+ ['trout','bass','salmon','carp','koi','pike','musky','gar'].forEach(k=>{
+  const b=buildFishMesh(k);
+  b.group.scale.setScalar(SPECIES[k].rare?1.05:1.2);
+  seaScene.add(b.group);
+  seaCreatures.push(new SeaCreature('fish',b.group,b.tailG));
+ });
+ const sh=buildSharkMesh();sh.group.scale.setScalar(1.15);
+ seaScene.add(sh.group);seaCreatures.push(new SeaCreature('shark',sh.group,sh.tailG));
+ const wh=buildWhaleMesh();
+ seaScene.add(wh.group);seaCreatures.push(new SeaCreature('whale',wh.group,wh.tailG));
+ resizeSea3D();
+}
+function resizeSea3D(){
+ if(!seaRenderer||!seaCam)return;
+ const box=$('authSea');
+ const w=box.clientWidth,h=box.clientHeight;
+ if(!w||!h)return;
+ seaRenderer.setSize(w,h,false);
+ seaCam.aspect=w/h;
+ const vfov=seaCam.fov*Math.PI/180;
+ const zH=(seaBox.y+1.8)/Math.tan(vfov/2);
+ const zW=(seaBox.x+1.8)/(Math.tan(vfov/2)*seaCam.aspect);
+ seaCam.position.set(0,.4,Math.max(zH,zW)+1.5);
+ seaCam.lookAt(0,0,0);
+ seaCam.updateProjectionMatrix();
+}
+function updateSea3D(rdt){
+ if(!seaRenderer)return;
+ SEA.t+=rdt;const t=SEA.t;
+ seaCreatures.forEach((c,i)=>c.update(rdt,t,SEA.mode,i));
+ SEA.spoutT-=rdt;
+ if(SEA.spoutT<=0){SEA.spoutT=rnd(4,7);
+  const w=seaCreatures.find(c=>c.kind==='whale');
+  if(w&&w.pos.x>-seaBox.x-2){
+   const hx=w.pos.x+Math.cos(w.heading)*1.6,hz=w.pos.z+Math.sin(w.heading)*1.6;
+   for(let k=0;k<12;k++)seaSpawnBubble(hx+rnd(-.3,.3),w.pos.y+.7+rnd(0,.3),hz+rnd(-.3,.3));
+  }}
+ seaVents.forEach(v=>{if(Math.random()<rdt*2.0)
+  seaSpawnBubble(v[0]+rnd(-.3,.3),-seaBox.y+.15,v[1]+rnd(-.3,.3));});
+ updateSeaBubbles(rdt,t);
+ seaWeeds.forEach(w=>w.userData.segs.forEach((s,i)=>{
+  s.rotation.z=Math.sin(t*1.1+w.userData.ph+i*.55)*.085;
+  s.rotation.x=Math.cos(t*.8+w.userData.ph+i*.4)*.05;}));
+ seaRayMats.forEach(m=>m.uniforms.uTime.value=t);
+ seaCam.position.x=Math.sin(t*.1)*.6;
+ seaCam.lookAt(0,0,0);
+ seaRenderer.render(seaScene,seaCam);
+}
+ 
+/* ---------- auth UI + leaderboard ---------- */
+function authErr(m){$('authErr').textContent=m;}
+function setAuthMode(m){authMode=m;
+ $('tabLogin').classList.toggle('on',m==='login');
+ $('tabSignup').classList.toggle('on',m==='signup');
+ $('authGo').textContent=m==='login'?'SIGN IN':'CREATE ACCOUNT';
+ $('confirmRow').classList.toggle('hidden',m!=='signup');
+ $('pwMeter').classList.toggle('hidden',m!=='signup');
+ authErr('');
+ if(m==='signup')updatePwMeter();}
+function pwScore(p){let s=0;
+ if(p.length>=8)s++;
+ if(p.length>=12)s++;
+ if(/[0-9]/.test(p)&&/[A-Za-z]/.test(p))s++;
+ if((/[a-z]/.test(p)&&/[A-Z]/.test(p))||/[^A-Za-z0-9]/.test(p))s++;
+ return s;}
+function updatePwMeter(){
+ const p=$('authPass').value,s=pwScore(p);
+ const bars=$('pwBars').children;
+ for(let i=0;i<4;i++){
+  bars[i].className='pwbar'+(p&&i<s?(s<=1?' w':s<=2?' f':s<=3?' g':' s'):'');
+ }
+ $('pwLbl').textContent=p?['WEAK','FAIR','GOOD','STRONG'][Math.max(0,Math.min(3,s-1))]:'';
+}
+function updateSeaMode(){
+ const v=$('authPass').value;
+ const m=!v?'roam':(showPw?'privacy':'peek');
+ if(m!==SEA.mode){SEA.mode=m;
+  $('seaMsg').classList.toggle('on',m==='privacy');
+  $('seaPeek').classList.toggle('on',m==='peek');}
+}
+function authSubmit(){
+ const em=$('authEmail').value.trim().toLowerCase();
+ const p1=$('authPass').value,p2=$('authPass2').value;
+ if(!EMAIL_RE.test(em)||em.length>64)return authErr('Enter a valid email address — like angler@phishlake.com');
+ if(p1.length<8)return authErr('Password must be at least 8 characters long.');
+ if(!(/[A-Za-z]/.test(p1)&&/[0-9]/.test(p1)))return authErr('Password must contain both letters and numbers.');
+ const db=loadDB();
+ if(authMode==='signup'){
+  if(p1!==p2)return authErr('Passwords do not match — type them again.');
+  if(db.users[em])return authErr('An account with this email already exists — sign in instead.');
+  const salt=makeSalt();
+  db.users[em]={name:nameFromEmail(em),salt,hash:pwHash(p1,salt),created:Date.now(),total:0,best:0,games:0,phish:0,catches:0};
+  saveDB(db);setSession(em);CURRENT=em;
+  enterLake('Account created — welcome, '+db.users[em].name+'. Every point now counts.');
+ }else{
+  const u=db.users[em];
+  if(!u)return authErr('No account found for that email — create one first.');
+  if(pwHash(p1,u.salt)!==u.hash)return authErr('Incorrect password — check your caps lock and try again.');
+  setSession(em);CURRENT=em;
+  enterLake('Welcome back, '+u.name+' — the lake remembered.');
+ }
+}
+function enterAsGuest(){
+ CURRENT=null;try{localStorage.removeItem('phishlake-session');}catch(e){}
+ enterLake('Playing as guest — points will not be recorded.');
+}
+function enterLake(msg){
+ SEA.on=false;
+ $('seaMsg').classList.remove('on');$('seaPeek').classList.remove('on');
+ $('authPass').value='';$('authPass2').value='';updatePwMeter();
+ $('authwrap').classList.add('off');
+ $('title').classList.remove('off');
+ personalize();
+ if(msg)toast(msg,3200);
+}
+function personalize(){
+ const db=loadDB();
+ if(CURRENT&&db.users[CURRENT]){
+  const u=db.users[CURRENT];
+  $('welcome').style.display='block';
+  $('welcome').innerHTML='SIGNED IN · <b>'+esc(u.name)+'</b> · '+esc(CURRENT)+' · LIFETIME <b>'+(u.total||0).toLocaleString()+'</b> PTS · BEST <b>'+(u.best||0)+'</b>';
+  $('anglerLbl').textContent='ANGLER · '+u.name.toUpperCase();
+  $('bestchip').style.display='inline';
+  $('bestchip').textContent='PERSONAL BEST · '+(u.best||0)+' PTS';
+  $('certName').value=u.name;CERT.name=u.name;
+ }else{
+  $('welcome').style.display='block';
+  $('welcome').innerHTML='PLAYING AS GUEST · sign up to record lifetime points and climb the leaderboard';
+  $('anglerLbl').textContent='ANGLER · GUEST';
+  let b=0;try{b=parseInt(localStorage.getItem('phishlake-best')||'0');}catch(e){}
+  if(b>0){$('bestchip').style.display='inline';$('bestchip').textContent='GUEST BEST · '+b+' PTS';}
+ }
+ renderBoard();
+}
+function renderBoard(){
+ const db=loadDB();
+ const rows=Object.entries(db.users)
+  .map(([em,u])=>({em,name:u.name||nameFromEmail(em),total:u.total||0,best:u.best||0,games:u.games||0}))
+  .sort((a,b)=>b.total-a.total||b.best-a.best);
+ if(!rows.length){$('boardList').innerHTML=
+  '<p class="fine" style="margin-top:10px">No anglers on the board yet — sign up, land some phish, and claim the top dock.</p>';return;}
+ $('boardList').innerHTML=rows.map((r,i)=>{
+  const me=r.em===CURRENT?' me':'';
+  const medal=i===0?glyphSVG('crown',14):i<3?glyphSVG('star',12):'';
+  return '<div class="lb'+me+'" title="'+esc(r.em)+'"><span class="lbR">'+String(i+1).padStart(2,'0')+'</span>'
+   +'<span class="lbM">'+medal+'</span>'
+   +'<span class="lbN">'+esc(r.name)+'</span>'
+   +'<span class="lbB">BEST '+r.best+' · '+r.games+'G</span>'
+   +'<span class="lbP">'+r.total.toLocaleString()+' PTS</span></div>';
+ }).join('');
+}
+(function initAuth(){
+ setAuthMode('login');
+ $('pwEye').innerHTML=ICO.eye;
+ $('tabLogin').addEventListener('click',()=>setAuthMode('login'));
+ $('tabSignup').addEventListener('click',()=>setAuthMode('signup'));
+ $('authGo').addEventListener('click',authSubmit);
+ $('authGuest').addEventListener('click',enterAsGuest);
+ $('pwEye').addEventListener('click',()=>{showPw=!showPw;
+  $('authPass').type=showPw?'text':'password';
+  $('authPass2').type=showPw?'text':'password';
+  $('pwEye').innerHTML=showPw?ICO.eyeoff:ICO.eye;
+  updateSeaMode();});
+ $('authPass').addEventListener('input',()=>{updateSeaMode();updatePwMeter();});
+ $('authPass2').addEventListener('input',()=>{});
+ $('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('authPass').focus();});
+ $('authPass').addEventListener('keydown',e=>{if(e.key==='Enter'){
+  if(authMode==='signup')$('authPass2').focus();else authSubmit();}});
+ $('authPass2').addEventListener('keydown',e=>{if(e.key==='Enter')authSubmit();});
+ initSea3D();resizeSea3D();
+ let sess=null;try{sess=localStorage.getItem('phishlake-session');}catch(e){}
+ const db=loadDB();
+ if(sess&&db.users[sess]){CURRENT=sess;enterLake();}
+ else{$('authwrap').classList.remove('off');SEA.on=true;}
+})();
+ 
+/* ============================================================ score display wiring */
+let tapSeq=0,tapT=0;
+ $('odoRow').style.pointerEvents='auto';
+ $('odoRow').addEventListener('pointerdown',e=>{
+ if(e.button!==undefined&&e.button!==0)return;
+ e.stopPropagation();
+ const n=performance.now();
+ if(n-tapT>2400)tapSeq=0;
+ tapT=n;tapSeq++;
+ if(tapSeq>=7){
+  tapSeq=0;
+  SFX.ensure();
+  tweens.length=0;
+  for(const f of fishes){f.state='caught';f.remove();}
+  fishes.length=0;
+  G.suitor=null;G.fish=null;G.biteFish=null;G.bobberActive=false;G.reeling=false;
+  bobber.visible=false;marker.visible=false;line.visible=false;
+  alertSpr.scale.setScalar(0);
+  $('castbar').classList.remove('on');
+  $('tension').classList.remove('on');
+  $('cardwrap').classList.remove('open');
+  $('streak').classList.remove('on');
+  setFight(null);setPrompt('');
+  const done=new Set(G.results.map(r=>r.e));
+  G.deck.forEach(e2=>{if(!done.has(e2)&&G.results.length<SHIFT_LEN)
+   G.results.push({e:e2,said:e2.p?'phish':'safe',correct:true,pts:120,secs:rnd(9,17)});});
+  G.inspected=G.results.length;
+  let sc=0,st=0;
+  G.results.forEach(()=>{st++;sc+=100+20+Math.min((st-1)*25,150);});
+  G.score=Math.max(G.score,sc);
+  BADGES.forEach(b=>G.badges.add(b.id));
+  renderTray();
+  odo.set(G.score);
+  G.results.forEach((r,i)=>{const seg=$('prog').children[i];
+   if(seg)seg.className='seg '+(r.e.p?'hit':'safe');});
+  $('readsCt').textContent=SHIFT_LEN+'/'+SHIFT_LEN;
+  showEnd();
+  openCert();
+ }
+});
+ 
+/* ============================================================ camera rig */
+const camPos=new THREE.Vector3(14,4.5,18),camLook=new THREE.Vector3(0,1,10);
+const dP=new THREE.Vector3(),dL=new THREE.Vector3();
+function updateCamera(rdt){
+ const k=1-Math.exp(-3.2*rdt),kB=1-Math.exp(-6*rdt);
+ if(G.state==='title'){
+  const a=T*.07;
+  dP.set(Math.sin(a)*14,4.2+Math.sin(T*.3)*.4,26+Math.cos(a)*14);
+  dL.set(0,.8,10);camPos.lerp(dP,k);camLook.lerp(dL,k);
+ }else if(G.state==='landing'&&G.fish){
+  dP.copy(G.fish.group.position).add(new THREE.Vector3(2.2,1.4,4.5));
+  dL.copy(G.fish.group.position);camPos.lerp(dP,1-Math.exp(-4*rdt));camLook.lerp(dL,kB);
+ }else if(G.state==='hooked'&&G.fish){
+  dP.set(1.7,3,29.3);
+  dL.copy(G.fish.group.position);dL.y=.3;
+  camPos.lerp(dP,k);camLook.lerp(dL,kB);
+ }else if(G.state==='charge'){
+  dP.set(2.2,3.1,30);dL.set(Math.sin(G.aimYaw)*10,.8,26.1-Math.cos(G.aimYaw)*10);
+  camPos.lerp(dP,k);camLook.lerp(dL,kB);
+ }else if(G.state==='wait'||G.state==='bite'){
+  dP.set(2,3.3,30.2);
+  dL.set(0,.9,16).lerp(G.bobberPos,.6);dL.y=.7;
+  camPos.lerp(dP,k);camLook.lerp(dL,kB);
+ }else{
+  dP.set(2.5,3.5,30.6);dL.set(0,.9,16);
+  camPos.lerp(dP,1-Math.exp(-1.6*rdt));camLook.lerp(dL,1-Math.exp(-1.2*rdt));
+ }
+ let shake=0;
+ if(G.state==='hooked'&&G.fish)shake=G.fish.tension*G.fish.tension*.12;
+ camera.position.set(camPos.x+Math.sin(T*37)*shake,camPos.y+Math.sin(T*43)*shake+.04*Math.sin(T*.55),camPos.z);
+ camera.lookAt(camLook);
+}
+ 
+/* ============================================================ main loop */
+let T=0,last=performance.now();
+function fmt(t){return String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');}
+function loop(now){
+ requestAnimationFrame(loop);
+ const rdt=Math.min(.05,(now-last)/1000);last=now;
+ G.timeScale+=(G.timeScaleTarget-G.timeScale)*Math.min(1,rdt*6);
+ const dt=rdt*G.timeScale;
+ T+=dt;
+ waterMat.uniforms.uTime.value=T;
+ skyMat.uniforms.uTime.value=T;
+ ffMat.uniforms.uTime.value=T;
+ lanternLight.intensity=15+Math.sin(T*9.7)*1.6+Math.sin(T*23)*.9;
+ if(SEA.on)updateSea3D(rdt);
+ 
+ if(G.started&&G.state!=='end')G.shiftTime+=rdt;
+ $('timer').textContent=fmt(G.shiftTime);
+ G.dispScore+=(G.score-G.dispScore)*Math.min(1,rdt*8);
+ const sv=Math.round(G.dispScore);
+ if(sv!==lastOdo){lastOdo=sv;odo.set(sv);}
+ 
+ updateTweens(dt);
+ for(const f of fishes)f.update(dt);
+ fishes=fishes.filter(x=>{if(x.snapped){snapLine(x);x.remove();return false;}return true;});
+ const cf=fishes.find(f=>f.caughtFlag);
+ if(cf)catchFish(cf);
+ updateJumps(dt);
+ updateRipples(dt);
+ splashPool.update(dt);sparklePool.update(dt);
+ 
+ if(G.state==='hooked'&&G.fish){
+  setFight(G.fish.mode==='burst'?'SLACK!':'REEL!',G.fish.mode==='burst'?'slack':'reel');
+ }else if(G.state==='bite'){setFight('SET THE HOOK!','hook');}
+ else setFight(null);
+ 
+ angler.position.y=.99+Math.sin(T*1.7)*.012;
+ if(G.state!=='cast'){
+  const target=(G.state==='charge')?-.15:(G.state==='hooked'?-1.05+Math.sin(T*30)*.02:-.85);
+  rodG.rotation.x+=(target-rodG.rotation.x)*Math.min(1,dt*6);
+ }
+ reel.rotation.y+=(G.reeling&&G.state==='hooked')?dt*14:0;
+ 
+ if(G.state==='charge'){
+  G.castT+=dt;
+  const tri=G.castT*.75%2;G.castPow=1-Math.abs(1-tri);
+  G.aimYaw=clamp((G.mx||0)*.55,-.55,.55);
+  const d=5+G.castPow*21;
+  marker.position.set(Math.sin(G.aimYaw)*d,0,26.1-Math.cos(G.aimYaw)*d);
+  marker.position.y=waterHeightAt(marker.position.x,marker.position.z,T)+.12;
+  marker.scale.setScalar(1+Math.sin(T*6)*.08);
+  $('castfill').style.width=(G.castPow*100)+'%';
+ }
+ 
+ if(G.state==='wait'||G.state==='bite'){
+  G.bobberDip+=G.bobberDipV*dt;G.bobberDipV+=(-G.bobberDip*30-G.bobberDipV*4)*dt;
+  const wy=waterHeightAt(G.bobberPos.x,G.bobberPos.z,T);
+  bobber.position.set(G.bobberPos.x,wy+.12-Math.min(.5,Math.max(-.5,G.bobberDip)),G.bobberPos.z);
+  bobber.rotation.z=Math.sin(T*2.5)*.15;
+  line.visible=true;
+  updateLine(rodTipWorld(),bobber.position,.7,false);
+  if(G.state==='wait'){
+   G.waitT+=dt;G.rippleT-=dt;
+   if(G.rippleT<=0){G.rippleT=2.4;spawnRipple(G.bobberPos.x,G.bobberPos.z,.5,1.1,.16);}
+   const s=G.suitor;
+   setPrompt(!s?'Wait for the float to plunge · click to set the hook':
+    s.state==='nibble'?'A tick… a nibble… wait for the plunge!':
+    'Something is circling the bait… steady…');
+  }else{
+   G.biteT-=dt;
+   alertSpr.position.set(G.bobberPos.x,bobber.position.y+1.15,G.bobberPos.z);
+   alertSpr.scale.setScalar(1.05+Math.sin(T*18)*.14);
+   if(G.biteT<=0){
+    alertSpr.scale.setScalar(0);G.biteFish.spook();G.biteFish=null;
+    G.bobberDipV=2;G.state='wait';SFX.blip();
+    toast('Too slow — it spat the hook.');
+   }
+  }
+ }else if(G.state==='cast'||G.state==='retrieve'){
+  line.visible=true;updateLine(rodTipWorld(),bobber.position,.25,false);
+  alertSpr.scale.setScalar(0);
+ }else if(G.state==='hooked'&&G.fish){
+  alertSpr.scale.setScalar(0);
+  line.visible=true;
+  updateLine(rodTipWorld(),G.fish.group.position,.35,false);
+  const tn=G.fish.tension;
+  G.maxTension=Math.max(G.maxTension,tn);
+  $('tensfill').style.height=(tn*100)+'%';
+  const tEl=$('tension');tEl.classList.toggle('warn',tn>.55&&tn<=.8);tEl.classList.toggle('danger',tn>.8);
+  lineMat.color.setRGB(lerp(.13,1,tn*tn),lerp(.09,.25,tn),lerp(.07,.18,tn));
+  if(G.reeling){G.lastTick+=dt*9;if(G.lastTick>1){G.lastTick=0;SFX.reel(tn);}}
+  if(tn>.7&&T-G.lastCreak>.6){G.lastCreak=T;SFX.creak(tn);}
+ }else{
+  alertSpr.scale.setScalar(Math.max(0,alertSpr.scale.x-dt*4));
+  if(G.state!=='landing'){line.visible=false;}
+ }
+ 
+ let lookX=null;
+ if(G.state==='charge')lookX=marker.position;
+ else if(bobber.visible)lookX=bobber.position;
+ else if(G.state==='hooked'&&G.fish)lookX=G.fish.group.position;
+ if(lookX&&G.state!=='cast'){
+  const dx=lookX.x-angler.position.x,dz=lookX.z-angler.position.z;
+  const ty=clamp(Math.atan2(-dx,-dz),-.6,.6);
+  rodG.rotation.y+=(ty-rodG.rotation.y)*Math.min(1,dt*3);
+  angler.rotation.y+=(clamp(ty*.5,-.4,.4)-angler.rotation.y)*Math.min(1,dt*3);
+ }else{rodG.rotation.y+=(0-rodG.rotation.y)*Math.min(1,dt*2);}
+ 
+ updateCamera(rdt);
+ if(!SEA.on)renderer.render(scene,camera);
+}
+requestAnimationFrame(loop);
+ 
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+ resizeSea3D();
+ if($('certwrap').classList.contains('on'))renderCertView();
+});
+ 
+const sb=$('startBtn');sb.disabled=false;sb.innerHTML=ICO.fish+'START SHIFT';
+</script>
+</body>
+</html>
